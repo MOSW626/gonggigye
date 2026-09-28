@@ -44,16 +44,26 @@ export function validateSchedule(s) {
   return e;
 }
 
-export function planSlides(photoCount) {
+// 표지(사진 1장 사용) + 결과 1장 + 선수카드 + 추가사진, 인스타 10장 제한. 선수카드가 우선.
+export function planSlides(photoCount, playerCount = 0) {
+  const room = MAX_SLIDES - 2;
+  const players = Math.min(playerCount, room);
   const rest = Math.max(photoCount - 1, 0);
-  const extra = Math.min(rest, MAX_SLIDES - 2);
-  return { extra, dropped: rest - extra, total: 2 + extra };
+  const extra = Math.min(rest, room - players);
+  return { players, extra, dropped: (playerCount - players) + (rest - extra), total: 2 + players + extra };
 }
 
-export function coverCrop(sw, sh, dw, dh) {
+// fy: 세로로 자를 때 초점 (0 = 맨 위, 0.5 = 가운데)
+export function coverCrop(sw, sh, dw, dh, fy = 0.5) {
   const scale = Math.max(dw / sw, dh / sh);
   const cw = dw / scale, ch = dh / scale;
-  return { sx: (sw - cw) / 2, sy: (sh - ch) / 2, sw: cw, sh: ch };
+  return { sx: (sw - cw) / 2, sy: (sh - ch) * fy, sw: cw, sh: ch };
+}
+
+// 자르지 않고 상자 안에 통째로 넣을 크기
+export function containRect(sw, sh, bw, bh) {
+  const s = Math.min(bw / sw, bh / sh);
+  return { w: Math.round(sw * s), h: Math.round(sh * s) };
 }
 
 export function sortedScorers(list) {

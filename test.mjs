@@ -25,11 +25,20 @@ assert.deepEqual(L.validateSchedule(sOk), []);
 assert.ok(L.validateSchedule({ ...sOk, matches: [] }).length);
 assert.ok(L.validateSchedule({ ...sOk, matches: Array(5).fill(sOk.matches[0]) }).length);
 
-// 슬라이드 수 (최대 10)
-assert.deepEqual(L.planSlides(0), { extra: 0, dropped: 0, total: 2 });
-assert.deepEqual(L.planSlides(1), { extra: 0, dropped: 0, total: 2 });
-assert.deepEqual(L.planSlides(9), { extra: 8, dropped: 0, total: 10 });
-assert.deepEqual(L.planSlides(12), { extra: 8, dropped: 3, total: 10 });
+// 슬라이드 수 (최대 10): 표지 + 결과 + 선수카드 + 추가사진, 선수카드 우선
+assert.deepEqual(L.planSlides(0, 0), { players: 0, extra: 0, dropped: 0, total: 2 });
+assert.deepEqual(L.planSlides(1, 0), { players: 0, extra: 0, dropped: 0, total: 2 });
+assert.deepEqual(L.planSlides(9, 0), { players: 0, extra: 8, dropped: 0, total: 10 });
+assert.deepEqual(L.planSlides(12, 0), { players: 0, extra: 8, dropped: 3, total: 10 });
+assert.deepEqual(L.planSlides(5, 3), { players: 3, extra: 4, dropped: 0, total: 9 });
+assert.deepEqual(L.planSlides(5, 6), { players: 6, extra: 2, dropped: 2, total: 10 });
+assert.deepEqual(L.planSlides(1, 10), { players: 8, extra: 0, dropped: 2, total: 10 });
+
+// 통째로 넣기 (contain)
+assert.deepEqual(L.containRect(4000, 3000, 968, 720), { w: 960, h: 720 });
+assert.deepEqual(L.containRect(1000, 500, 968, 720), { w: 968, h: 484 });
+// 세로 크롭 초점 (위쪽 30%) — 얼굴 안 잘리게
+assert.deepEqual(L.coverCrop(3000, 4000, 1080, 1350, 0.3), { sx: 0, sy: 75, sw: 3000, sh: 3750 });
 
 // 크롭: 가로 4000x3000 → 4:5 는 폭을 자름
 assert.deepEqual(L.coverCrop(4000, 3000, 1080, 1350), { sx: 800, sy: 0, sw: 2400, sh: 3000 });

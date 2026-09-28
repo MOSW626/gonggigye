@@ -2,75 +2,192 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2F4F6">
 <title>공기계 포스트</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <style>
-  :root { --navy:#0E1A3C; --blue:#1E3FCB; }
-  body { margin:0; padding:16px; font-family:"Noto Sans KR", system-ui, sans-serif; background:#f3f4f8; color:#111; max-width:640px; margin-inline:auto; }
-  h1 { font-family:"Black Han Sans", sans-serif; color:var(--navy); margin:4px 0 12px; }
-  nav { display:flex; gap:8px; margin-bottom:12px; }
-  nav button { flex:1; padding:10px; border:2px solid var(--navy); background:#fff; border-radius:8px; font-weight:700; }
-  nav button.on { background:var(--navy); color:#fff; }
-  label { display:block; margin:10px 0 4px; font-weight:700; }
-  input { font:inherit; padding:8px; border:1px solid #bbb; border-radius:6px; box-sizing:border-box; }
-  label + input, input[type=file] { width:100%; }
-  fieldset { border:1px solid #ccd; border-radius:8px; margin:10px 0; padding:8px; min-inline-size:0; }
-  .row { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:4px 0; }
-  #matches .row { border-bottom:1px solid #e3e6ef; padding-bottom:6px; }
-  #matches .row input { flex:1 1 40%; }
-  .row input { min-width:0; flex:1; }
-  .row input[type=number] { flex:0 0 3.5em; }
-  .row .del { flex:0 0 auto; border:0; background:none; font-size:20px; }
-  button.main, .add { padding:12px; width:100%; border:0; border-radius:8px; font-weight:700; margin-top:8px; }
-  button.main { background:var(--blue); color:#fff; font-size:17px; }
-  button.main:disabled { background:#aab; }
-  .add { background:#e3e7f5; }
-  #errors { color:#c00; white-space:pre-line; }
-  #slides { display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; }
-  #slides img { width:80%; flex:0 0 auto; scroll-snap-align:center; border-radius:6px; }
-  textarea { width:100%; box-sizing:border-box; font:inherit; }
-  #note { color:#555; }
+  :root { --bg:#F2F4F6; --card:#fff; --text:#191F28; --sub:#6B7684; --line:#E5E8EB; --field:#F2F4F6; --blue:#3182F6; --blue-press:#1B64DA; --red:#F04452; --navy:#0E1A3C; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:Pretendard, -apple-system, system-ui, sans-serif; letter-spacing:-0.02em; }
+  .wrap { max-width:560px; margin:0 auto; padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 140px); }
+  header { display:flex; align-items:center; gap:10px; padding:8px 4px 16px; }
+  header img { width:36px; height:36px; }
+  header b { font-size:22px; font-weight:800; }
+  .seg { display:flex; background:#E5E8EB; border-radius:14px; padding:4px; margin-bottom:16px; }
+  .seg button { flex:1; border:0; background:none; padding:10px; border-radius:10px; font:inherit; font-size:15px; font-weight:700; color:var(--sub); }
+  .seg button.on { background:#fff; color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .card { background:var(--card); border-radius:24px; padding:22px 20px; margin-bottom:12px; }
+  .card h2 { font-size:20px; font-weight:800; margin:0 0 4px; }
+  .card h2 small { font-size:14px; color:var(--sub); font-weight:600; margin-left:4px; }
+  .hint { color:var(--sub); font-size:14px; margin:0 0 16px; }
+  .field { margin-top:12px; }
+  .field > span { display:block; font-size:14px; color:var(--sub); font-weight:600; margin-bottom:6px; }
+  input:not([type=file]) { width:100%; font:inherit; font-size:17px; font-weight:600; color:var(--text); background:var(--field); border:2px solid transparent; border-radius:14px; padding:14px 16px; outline:none; appearance:none; -webkit-appearance:none; min-height:52px; }
+  input:focus { border-color:var(--blue); background:#fff; }
+  input::placeholder { color:#B0B8C1; font-weight:500; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  /* − 숫자 + */
+  .stepper { display:flex; align-items:center; background:var(--field); border-radius:14px; height:52px; }
+  .stepper button { width:48px; height:52px; border:0; background:none; font-size:24px; color:var(--blue); font-weight:700; }
+  .stepper button:active { opacity:.5; }
+  .stepper input { background:none !important; border:0 !important; text-align:center; padding:0; min-height:0; min-width:0; flex:1; font-size:20px; font-weight:800; }
+  .stepper.sm { height:44px; } .stepper.sm button { width:40px; height:44px; font-size:20px; } .stepper.sm input { font-size:17px; }
+  /* 경기 */
+  #games { counter-reset:g; }
+  .game { border:1px solid var(--line); border-radius:18px; padding:14px; margin-bottom:10px; }
+  .game .head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .game .head b::before { counter-increment:g; content:counter(g) "경기"; font-size:15px; }
+  .team { display:grid; grid-template-columns:1fr 150px; gap:8px; margin-top:8px; }
+  .del { border:0; background:none; color:var(--sub); font:inherit; font-size:14px; font-weight:600; padding:6px 8px; }
+  .ghost { width:100%; border:0; background:#E8F3FF; color:var(--blue); font:inherit; font-size:16px; font-weight:700; border-radius:14px; padding:14px; margin-top:4px; }
+  .ghost:active { background:#D0E6FF; }
+  /* 선수 */
+  .player { display:grid; grid-template-columns:56px 1fr auto; gap:10px; align-items:center; padding:12px 0; border-top:1px solid var(--line); }
+  .player:first-child { border-top:0; padding-top:0; }
+  .avatar { width:56px; height:56px; border-radius:50%; background:var(--field) center/cover; display:grid; place-items:center; font-size:22px; color:var(--sub); cursor:pointer; position:relative; }
+  .avatar.has span { display:none; }
+  .avatar.has::after { content:"✓"; position:absolute; right:-2px; bottom:-2px; width:20px; height:20px; border-radius:50%; background:var(--blue); color:#fff; font-size:12px; display:grid; place-items:center; border:2px solid #fff; }
+  .stats { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .stats label { font-size:13px; color:var(--sub); font-weight:600; }
+  /* 사진 */
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+  .thumb { position:relative; aspect-ratio:1; border-radius:14px; background:#ddd center/cover; }
+  .thumb .x { position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; border:0; background:rgba(0,0,0,.55); color:#fff; font-size:14px; }
+  .thumb .tag { position:absolute; left:6px; bottom:6px; background:var(--blue); color:#fff; font-size:12px; font-weight:700; border-radius:8px; padding:3px 7px; }
+  .picker { display:block; text-align:center; }
+  /* 일정 */
+  .match { border:1px solid var(--line); border-radius:18px; padding:14px; margin-bottom:10px; }
+  #matches { counter-reset:m; }
+  .match .head b::before { counter-increment:m; content:counter(m) "번째 경기"; font-size:15px; }
+  .match .head { display:flex; justify-content:space-between; align-items:center; }
+  input[type=date], input[type=time], input[type=month] { text-align:left; }
+  /* 하단 고정 버튼 */
+  .cta { position:fixed; left:0; right:0; bottom:0; padding:12px 16px calc(env(safe-area-inset-bottom) + 12px); background:linear-gradient(rgba(242,244,246,0), var(--bg) 30%); }
+  .cta .in { max-width:560px; margin:0 auto; }
+  .cta p { margin:0 0 8px; text-align:center; font-size:14px; font-weight:600; color:var(--red); min-height:1.2em; }
+  .primary { width:100%; border:0; background:var(--blue); color:#fff; font:inherit; font-size:17px; font-weight:700; border-radius:16px; height:56px; }
+  .primary:active { background:var(--blue-press); }
+  .primary:disabled { background:#C9E2FF; }
+  .secondary { width:100%; border:0; background:#E8EBED; color:#4E5968; font:inherit; font-size:17px; font-weight:700; border-radius:16px; height:56px; }
+  .row2 { display:grid; grid-template-columns:1fr 2fr; gap:8px; }
+  /* 결과 화면 */
+  #out { position:fixed; inset:0; background:var(--bg); overflow-y:auto; z-index:5; }
+  #out .wrap { padding-bottom:calc(env(safe-area-inset-bottom) + 110px); }
+  #out h1 { font-size:24px; font-weight:800; margin:8px 4px 4px; }
+  #out .hint { margin:0 4px 16px; }
+  #slides { display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px 8px; padding:0 16px; scrollbar-width:none; }
+  #slides img { width:84%; flex:0 0 auto; scroll-snap-align:center; border-radius:18px; box-shadow:0 6px 20px rgba(0,0,0,.12); }
+  #count { text-align:center; color:var(--sub); font-size:14px; font-weight:600; margin-bottom:16px; }
+  textarea { width:100%; font:inherit; font-size:16px; line-height:1.5; border:0; background:var(--field); border-radius:14px; padding:14px; resize:vertical; color:var(--text); }
+  .copy { margin-top:10px; }
+  #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 96px); transform:translate(-50%, 20px); background:rgba(25,31,40,.92); color:#fff; padding:12px 18px; border-radius:14px; font-size:15px; font-weight:600; opacity:0; transition:.25s; pointer-events:none; z-index:9; white-space:nowrap; }
+  #toast.on { opacity:1; transform:translate(-50%, 0); }
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
-<h1>공기계 포스트</h1>
-<nav><button data-tab="result" class="on">경기 결과</button><button data-tab="schedule">월간 일정</button></nav>
+<div class="wrap">
+  <header><img src="assets/logo.png" alt="" onerror="this.remove()"><b>공기계 포스트</b></header>
+  <div class="seg"><button data-tab="result" class="on">경기 결과</button><button data-tab="schedule">월간 일정</button></div>
 
-<form id="result">
-  <label>날짜</label><input type="date" name="date">
-  <label>장소</label><input name="place" list="places" value="북측 운동장">
-  <label>참여 인원</label><input type="number" name="people" min="0" inputmode="numeric">
-  <fieldset id="games"><legend>경기 (팀 · 점수)</legend></fieldset>
-  <button type="button" class="add" data-add="games">+ 경기 추가</button>
-  <fieldset id="scorers"><legend>득점 · 도움</legend></fieldset>
-  <button type="button" class="add" data-add="scorers">+ 선수 추가</button>
-  <label>사진 (첫 장이 대표사진, 최대 9장)</label><input type="file" name="photos" accept="image/*" multiple>
-  <label>한 줄 코멘트 (캡션용)</label><input name="comment">
-  <button class="main">만들기</button>
-</form>
+  <form id="result" novalidate>
+    <section class="card">
+      <h2>언제, 어디서 했나요?</h2>
+      <div class="field"><span>날짜</span><input type="date" name="date"></div>
+      <div class="field"><span>장소</span><input name="place" list="places" placeholder="예) 북측 운동장"></div>
+      <div class="field"><span>참여 인원</span>
+        <div class="stepper"><button type="button" data-step="-1">−</button><input type="number" name="people" inputmode="numeric" min="0" value="0"><button type="button" data-step="1">+</button></div>
+      </div>
+    </section>
 
-<form id="schedule" hidden>
-  <label>월</label><input type="month" name="month">
-  <fieldset id="matches"><legend>경기 (1~4건)</legend></fieldset>
-  <button type="button" class="add" data-add="matches">+ 경기 추가</button>
-  <button class="main">만들기</button>
-</form>
+    <section class="card">
+      <h2>스코어</h2>
+      <p class="hint">팀 이름은 조끼 색으로 적어 주세요</p>
+      <div id="games"></div>
+      <button type="button" class="ghost" data-add="games">＋ 경기 추가</button>
+    </section>
 
-<datalist id="places"><option>북측 운동장</option><option>대운동장</option></datalist>
-<p id="errors"></p>
+    <section class="card">
+      <h2>잘한 선수 <small>선택</small></h2>
+      <p class="hint">동그라미를 눌러 사진을 넣으면 선수 카드가 만들어져요</p>
+      <div id="scorers"></div>
+      <button type="button" class="ghost" data-add="scorers">＋ 선수 추가</button>
+    </section>
+
+    <section class="card">
+      <h2>사진 <small>선택</small></h2>
+      <p class="hint">사진을 누르면 표지 사진으로 바뀌어요. 잘리지 않고 통째로 들어가요</p>
+      <div id="photos" class="grid" hidden></div>
+      <label class="ghost picker">＋ 사진 고르기<input type="file" id="photoInput" accept="image/*" multiple hidden></label>
+    </section>
+
+    <section class="card">
+      <h2>한 줄 코멘트 <small>선택</small></h2>
+      <p class="hint">캡션에 들어가요</p>
+      <input name="comment" placeholder="예) 다들 수고 많았어요!">
+    </section>
+  </form>
+
+  <form id="schedule" novalidate hidden>
+    <section class="card">
+      <h2>몇 월 일정인가요?</h2>
+      <div class="field"><input type="month" name="month"></div>
+    </section>
+    <section class="card">
+      <h2>경기 일정</h2>
+      <p class="hint">최대 4건. 상대팀을 적으면 친선전으로 표시돼요</p>
+      <div id="matches"></div>
+      <button type="button" class="ghost" data-add="matches">＋ 경기 추가</button>
+    </section>
+  </form>
+</div>
+
+<div class="cta"><div class="in"><p id="errors"></p><button class="primary" id="go">이미지 만들기</button></div></div>
 
 <section id="out" hidden>
-  <div id="slides"></div>
-  <button class="main" id="share">공유 / 저장</button>
-  <p id="note"></p>
-  <label>캡션</label><textarea id="caption" rows="10"></textarea>
-  <button class="main" id="copy">캡션 복사</button>
+  <div class="wrap">
+    <h1>완성됐어요 🎉</h1>
+    <p class="hint" id="note">옆으로 넘겨서 확인해 보세요</p>
+    <div id="slides"></div>
+    <div id="count"></div>
+    <section class="card">
+      <h2>캡션</h2>
+      <p class="hint">인스타에 올릴 때 붙여 넣으세요</p>
+      <textarea id="caption" rows="9"></textarea>
+      <button class="ghost copy" id="copy">캡션 복사하기</button>
+    </section>
+  </div>
+  <div class="cta"><div class="in row2"><button class="secondary" id="back">수정하기</button><button class="primary" id="share">공유 / 저장</button></div></div>
 </section>
+<div id="toast"></div>
 
-<template id="t-games"><div class="row"><input name="a" placeholder="팀A"><input name="as" type="number" min="0" inputmode="numeric" value="0"><span>:</span><input name="bs" type="number" min="0" inputmode="numeric" value="0"><input name="b" placeholder="팀B"><button type="button" class="del">×</button></div></template>
-<template id="t-scorers"><div class="row"><input name="name" placeholder="이름"><span>골</span><input name="goals" type="number" min="0" inputmode="numeric" value="0"><span>도움</span><input name="assists" type="number" min="0" inputmode="numeric" value="0"><button type="button" class="del">×</button></div></template>
-<template id="t-matches"><div class="row"><input name="date" type="date"><input name="start" type="time" value="20:00"><input name="end" type="time" value="22:00"><input name="place" list="places" placeholder="장소"><input name="opp" placeholder="상대팀(친선전)"><button type="button" class="del">×</button></div></template>
+<datalist id="places"><option>북측 운동장</option><option>대운동장</option></datalist>
+<datalist id="recent-players"></datalist>
+
+<template id="t-games"><div class="game row">
+  <div class="head"><b></b><button type="button" class="del">삭제</button></div>
+  <div class="team"><input name="a" placeholder="팀 이름"><div class="stepper"><button type="button" data-step="-1">−</button><input name="as" type="number" inputmode="numeric" min="0" value="0"><button type="button" data-step="1">+</button></div></div>
+  <div class="team"><input name="b" placeholder="팀 이름"><div class="stepper"><button type="button" data-step="-1">−</button><input name="bs" type="number" inputmode="numeric" min="0" value="0"><button type="button" data-step="1">+</button></div></div>
+</div></template>
+<template id="t-scorers"><div class="player row">
+  <label class="avatar"><span>📷</span><input type="file" accept="image/*" hidden></label>
+  <input name="name" placeholder="이름" list="recent-players" autocomplete="off">
+  <button type="button" class="del">삭제</button>
+  <div class="stats">
+    <div><label>골</label><div class="stepper sm"><button type="button" data-step="-1">−</button><input name="goals" type="number" inputmode="numeric" min="0" value="0"><button type="button" data-step="1">+</button></div></div>
+    <div><label>도움</label><div class="stepper sm"><button type="button" data-step="-1">−</button><input name="assists" type="number" inputmode="numeric" min="0" value="0"><button type="button" data-step="1">+</button></div></div>
+  </div>
+</div></template>
+<template id="t-matches"><div class="match row">
+  <div class="head"><b></b><button type="button" class="del">삭제</button></div>
+  <div class="field"><input name="date" type="date"></div>
+  <div class="field two"><input name="start" type="time" value="20:00"><input name="end" type="time" value="22:00"></div>
+  <div class="field"><input name="place" list="places" placeholder="장소" value="북측 운동장"></div>
+  <div class="field"><input name="opp" placeholder="상대팀 (친선전일 때만)"></div>
+</div></template>
 
 <script type="module">
 import * as L from './lib.js';
@@ -78,117 +195,177 @@ import * as R from './render.js';
 
 const $ = s => document.querySelector(s);
 const forms = { result: $('#result'), schedule: $('#schedule') };
-let files = [];
+const tab = () => (forms.result.hidden ? 'schedule' : 'result');
+let photos = [];   // 사진 파일 (0번이 표지)
+let files = [];    // 만들어진 이미지
 
+// ── 브라우저에 기억 (최근 선수 이름·장소) ──
+const store = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } },
+  add: (k, vals) => { try { localStorage.setItem(k, JSON.stringify([...new Set([...vals, ...store.get(k)])].slice(0, 40))); } catch {} },
+};
+const fillRecent = () => $('#recent-players').replaceChildren(...store.get('gg_players').map(n => Object.assign(document.createElement('option'), { value: n })));
+
+// ── 행 추가/삭제 ──
 function addRow(id, vals = {}) {
   const row = $(`#t-${id}`).content.firstElementChild.cloneNode(true);
   for (const [k, v] of Object.entries(vals)) row.querySelector(`[name="${k}"]`).value = v;
-  row.querySelector('.del').onclick = () => { row.remove(); check(); };
+  row.querySelector('.del')?.addEventListener('click', () => { row.remove(); check(); });
+  const av = row.querySelector('.avatar');
+  if (av) av.querySelector('input').onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    row._photo = f;
+    av.style.backgroundImage = `url(${URL.createObjectURL(f)})`;
+    av.classList.add('has');
+  };
   $('#' + id).append(row);
+  return row;
 }
-const rows = id => [...$('#' + id).querySelectorAll('.row')].map(r =>
-  Object.fromEntries([...r.querySelectorAll('input')].map(i =>
-    [i.name, i.type === 'number' ? (i.value === '' ? NaN : Number(i.value)) : i.value.trim()])));
+const rows = id => [...$('#' + id).querySelectorAll('.row')].map(r => ({
+  ...Object.fromEntries([...r.querySelectorAll('input:not([type=file])')].map(i =>
+    [i.name, i.type === 'number' ? (i.value === '' ? NaN : Number(i.value)) : i.value.trim()])),
+  photo: r._photo || null,
+}));
 
+// − / + 버튼
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-step]'); if (!b) return;
+  const inp = b.parentElement.querySelector('input');
+  inp.value = Math.max(0, (Number(inp.value) || 0) + Number(b.dataset.step));
+  check();
+});
+
+// ── 사진 ──
+function drawThumbs() {
+  const box = $('#photos');
+  box.hidden = !photos.length;
+  box.replaceChildren(...photos.map((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'thumb';
+    d.style.backgroundImage = `url(${f._url ||= URL.createObjectURL(f)})`;
+    d.innerHTML = `${i === 0 ? '<span class="tag">표지</span>' : ''}<button type="button" class="x" aria-label="빼기">✕</button>`;
+    d.onclick = e => {
+      if (e.target.classList.contains('x')) photos.splice(i, 1);
+      else photos.unshift(...photos.splice(i, 1));
+      drawThumbs();
+    };
+    return d;
+  }));
+}
+$('#photoInput').onchange = e => { photos.push(...e.target.files); e.target.value = ''; drawThumbs(); };
+
+// ── 읽기 · 검사 ──
 const readResult = () => {
   const f = forms.result.elements;
-  return { date: f.date.value, place: f.place.value.trim(), people: Number(f.people.value) || 0,
+  return { date: f.date.value, place: f.place.value.trim(), people: Math.max(0, Math.trunc(Number(f.people.value) || 0)),
     games: rows('games'), scorers: rows('scorers').filter(s => s.name), comment: f.comment.value.trim() };
 };
 const readSchedule = () => ({ month: forms.schedule.elements.month.value, matches: rows('matches') });
-const current = () => (forms.result.hidden ? 'schedule' : 'result');
-
 function check() {
-  const errs = current() === 'result' ? L.validateResult(readResult()) : L.validateSchedule(readSchedule());
-  $('#errors').textContent = errs.join('\n');
-  forms[current()].querySelector('.main').disabled = errs.length > 0;
+  const errs = tab() === 'result' ? L.validateResult(readResult()) : L.validateSchedule(readSchedule());
+  $('#errors').textContent = errs[0] || '';
+  $('#go').disabled = errs.length > 0;
+  return !errs.length;
 }
+document.addEventListener('input', check);
 
-const logoP = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = 'assets/logo.png'; });
-// 한글 웹폰트는 글자 범위별로 나눠 받으므로, 실제로 그릴 글자를 넘겨서 로드한다
-const loadFonts = text => Promise.race([
-  Promise.all(['72px "Black Han Sans"', '40px "Noto Sans KR"', '700 40px "Noto Sans KR"']
-    .map(f => document.fonts.load(f, text + ' GONGGIGYEMATCHRESULTFIXTURES0123456789골도움경기월일정참여는톡방투표로득점일월화수목금토명'))),
-  new Promise(r => setTimeout(r, 3000)), // 폰트 실패해도 시스템 폰트로 계속
+// ── 폰트: 스타일시트가 먼저 로드돼야 fonts.load가 기다려 준다. 한글은 글자 범위별로 받으므로 실제 텍스트를 넘긴다 ──
+const cssReady = Promise.all([...document.querySelectorAll('link[rel=stylesheet]')].map(l => l.sheet ? 1 : new Promise(r => { l.onload = l.onerror = r; })));
+const EXTRA = ' GONGGIGYEMATCHRESULTFULLTIMEFIXTURESTOPSCORERPLAYMAKERGOALSASSISTS0123456789★·:–●골도움경기월일화수목금토명득점참여는톡방투표로공기계일정외';
+const loadFonts = t => Promise.race([
+  cssReady.then(() => Promise.all(['72px "Black Han Sans"', '40px "Pretendard"', '700 40px "Pretendard"', '800 40px "Pretendard"'].map(f => document.fonts.load(f, t + EXTRA)))),
+  new Promise(r => setTimeout(r, 4000)), // 폰트가 안 와도 시스템 폰트로 계속
 ]).catch(() => {});
-
-async function show(canvases, caption, note = '') {
-  const blobs = await Promise.all(canvases.map(c => new Promise(r => c.toBlob(r, 'image/png'))));
-  files = blobs.map((b, i) => new File([b], `gonggigye_${i + 1}.png`, { type: 'image/png' }));
-  $('#slides').replaceChildren(...files.map(f => Object.assign(new Image(), { src: URL.createObjectURL(f) })));
-  $('#caption').value = caption;
-  $('#note').textContent = note;
-  $('#out').hidden = false;
-  $('#out').scrollIntoView({ behavior: 'smooth' });
-}
-
-// 만드는 동안 버튼 잠금 + 실패 시 안내 (사진 디코딩 실패 등)
-async function busy(form, work) {
-  const btn = form.querySelector('.main');
-  btn.disabled = true; btn.textContent = '만드는 중…';
-  try { await work(); }
-  catch (err) { $('#errors').textContent = `이미지를 만들지 못했어요: ${err.message || err}\n사진을 JPG로 바꾸거나 장수를 줄여 보세요.`; }
-  finally { btn.textContent = '만들기'; check(); }
-}
+const logoP = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = 'assets/logo.png'; });
 
 // iOS 메모리 보호: 사진은 한 장씩 디코딩해서 그리고 바로 해제
-async function slideFrom(file, draw) {
+async function withBitmap(file, draw) {
   const bmp = await createImageBitmap(file);
   try { return draw(bmp); } finally { bmp.close(); }
 }
 
-forms.result.onsubmit = e => {
-  e.preventDefault();
+async function makeResult() {
   const r = readResult();
-  if (L.validateResult(r).length) return check();
-  busy(forms.result, async () => {
-    const photos = [...forms.result.elements.photos.files];
-    const plan = L.planSlides(photos.length);
-    const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(r))]);
-    const slides = [photos[0] ? await slideFrom(photos[0], b => R.cover(r, b, logo)) : R.cover(r, null, logo), R.summary(r, logo)];
-    for (const f of photos.slice(1, 1 + plan.extra)) slides.push(await slideFrom(f, R.photoSlide));
-    await show(slides, L.resultCaption(r), plan.dropped ? `사진 ${plan.dropped}장은 인스타 10장 제한으로 제외됐어요.` : '');
-  });
-};
-
-forms.schedule.onsubmit = e => {
-  e.preventDefault();
+  const players = L.sortedScorers(r.scorers).filter(p => p.photo);
+  const plan = L.planSlides(photos.length, players.length);
+  const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(r))]);
+  const all = L.sortedScorers(r.scorers);
+  const slides = [photos[0] ? await withBitmap(photos[0], b => R.cover(r, b, logo)) : R.cover(r, null, logo), R.summary(r, logo)];
+  for (const p of players.slice(0, plan.players)) {
+    const i = all.indexOf(p);
+    slides.push(await withBitmap(p.photo, b => R.playerCard(p, r, b, logo, R.badgeFor(p, i, all))));
+  }
+  for (const f of photos.slice(1, 1 + plan.extra)) slides.push(await withBitmap(f, R.photoSlide));
+  store.add('gg_players', r.scorers.map(s => s.name)); fillRecent();
+  return [slides, L.resultCaption(r), plan.dropped ? `인스타는 10장까지라 ${plan.dropped}장은 뺐어요` : ''];
+}
+async function makeSchedule() {
   const s = readSchedule();
-  if (L.validateSchedule(s).length) return check();
-  busy(forms.schedule, async () => {
-    const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(s))]);
-    await show([R.schedule(s, logo)], L.scheduleCaption(s));
-  });
+  const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(s))]);
+  return [[R.schedule(s, logo)], L.scheduleCaption(s), ''];
+}
+
+$('#go').onclick = async () => {
+  if (!check()) return;
+  const go = $('#go');
+  go.disabled = true; go.textContent = '만드는 중…';
+  try {
+    const [canvases, caption, note] = await (tab() === 'result' ? makeResult() : makeSchedule());
+    const blobs = await Promise.all(canvases.map(c => new Promise(r => c.toBlob(r, 'image/png'))));
+    for (const i of $('#slides').querySelectorAll('img')) URL.revokeObjectURL(i.src);
+    files = blobs.map((b, i) => new File([b], `gonggigye_${i + 1}.png`, { type: 'image/png' }));
+    $('#slides').replaceChildren(...files.map(f => Object.assign(new Image(), { src: URL.createObjectURL(f) })));
+    $('#count').textContent = `${files.length}장`;
+    $('#note').textContent = note || '옆으로 넘겨서 확인해 보세요';
+    $('#caption').value = caption;
+    $('#out').hidden = false; $('#out').scrollTop = 0;
+  } catch (err) {
+    $('#errors').textContent = '이미지를 만들지 못했어요. 사진 장수를 줄이거나 다른 사진으로 해 보세요.';
+    console.error(err);
+  } finally {
+    go.textContent = '이미지 만들기'; check();
+  }
 };
 
+// ── 결과 화면 ──
+let toastT;
+const toast = m => { $('#toast').textContent = m; $('#toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('#toast').classList.remove('on'), 1800); };
+$('#back').onclick = () => { $('#out').hidden = true; };
 $('#share').onclick = async () => {
-  const saveHint = '이미지를 길게 눌러 사진에 저장하세요.';
-  if (!navigator.canShare?.({ files })) return ($('#note').textContent = saveHint);
+  if (!navigator.canShare?.({ files })) return toast('이미지를 길게 눌러 저장해 주세요');
   try { await navigator.share({ files }); }
-  catch (err) { if (err.name !== 'AbortError') $('#note').textContent = saveHint; }
+  catch (err) { if (err.name !== 'AbortError') toast('이미지를 길게 눌러 저장해 주세요'); }
 };
 $('#copy').onclick = async () => {
-  try { await navigator.clipboard.writeText($('#caption').value); $('#copy').textContent = '복사됨!'; }
-  catch { $('#caption').select(); $('#note').textContent = '캡션을 길게 눌러 복사하세요.'; }
+  try { await navigator.clipboard.writeText($('#caption').value); toast('캡션을 복사했어요'); }
+  catch { const t = $('#caption'); t.focus(); t.setSelectionRange(0, t.value.length); toast('선택된 캡션을 복사해 주세요'); }
 };
 
-document.querySelectorAll('[data-add]').forEach(b => (b.onclick = () => { addRow(b.dataset.add); check(); }));
-document.querySelectorAll('nav button').forEach(b => (b.onclick = () => {
-  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+// ── 탭 ──
+document.querySelectorAll('.seg button').forEach(b => (b.onclick = () => {
+  document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
   for (const [k, f] of Object.entries(forms)) f.hidden = k !== b.dataset.tab;
-  $('#out').hidden = true; check();
+  check();
 }));
-document.addEventListener('input', check);
+document.querySelectorAll('[data-add]').forEach(b => (b.onclick = () => {
+  const n = $('#' + b.dataset.add).querySelectorAll('.row').length;
+  if (b.dataset.add === 'matches' && n >= 4) return toast('일정은 4건까지 넣을 수 있어요');
+  if (b.dataset.add === 'games' && n >= 6) return toast('경기는 6판까지 넣을 수 있어요');
+  addRow(b.dataset.add); check();
+}));
 
-// 기본값
+// ── 기본값 ──
 const today = new Date();
-forms.result.elements.date.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+forms.result.elements.date.value = iso(today);
+forms.result.elements.place.value = '북측 운동장';
 forms.schedule.elements.month.value = L.nextMonth(today);
 addRow('games', { a: '파랑', b: '검정' });
-addRow('matches', { place: '북측 운동장' });
+addRow('matches');
+fillRecent();
 check();
 
-// ?demo=result | ?demo=schedule : 샘플로 바로 그려 보기 (개발 확인용)
+// ?demo=result | ?demo=schedule : 샘플로 바로 만들어 보기 (개발 확인용)
 const demo = new URLSearchParams(location.search).get('demo');
 if (demo === 'result') {
   forms.result.elements.people.value = 14;
@@ -196,13 +373,14 @@ if (demo === 'result') {
   addRow('games', { a: '검정', as: 1, b: '흰색', bs: 1 });
   addRow('scorers', { name: '선수A', goals: 2, assists: 0 });
   addRow('scorers', { name: '선수B', goals: 1, assists: 1 });
-  forms.result.requestSubmit();
+  check(); $('#go').click();
 } else if (demo === 'schedule') {
-  document.querySelector('nav button[data-tab=schedule]').click();
+  document.querySelector('.seg button[data-tab=schedule]').click();
   $('#matches .row [name=date]').value = `${forms.schedule.elements.month.value}-07`;
-  addRow('matches', { date: `${forms.schedule.elements.month.value}-21`, start: '20:00', end: '22:00', place: '대운동장', opp: 'FC FingS' });
-  check();
-  forms.schedule.requestSubmit();
+  addRow('matches', { date: `${forms.schedule.elements.month.value}-21`, place: '대운동장', opp: 'FC FingS' });
+  check(); $('#go').click();
+} else if (demo === 'form') {
+  addRow('scorers', { name: '선수A', goals: 2, assists: 1 });
 }
 </script>
 </body>

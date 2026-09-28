@@ -23,10 +23,13 @@ const score = s => Number.isInteger(s) && s >= 0;
 export function validateResult(r) {
   const e = [];
   if (!r.date) e.push('날짜를 입력하세요');
-  if (!r.games.length) e.push('경기를 1판 이상 입력하세요');
+  if (!r.games.length || r.games.length > 6) e.push('경기는 1~6판');
   r.games.forEach((g, i) => {
     if (!g.a || !g.b) e.push(`${i + 1}경기: 팀 이름을 입력하세요`);
     if (!score(g.as) || !score(g.bs)) e.push(`${i + 1}경기: 점수는 0 이상 정수`);
+  });
+  r.scorers.forEach(s => {
+    if (!score(s.goals) || !score(s.assists)) e.push(`${s.name}: 골·도움은 0 이상 정수`);
   });
   return e;
 }

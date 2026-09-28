@@ -16,6 +16,10 @@ assert.ok(L.validateResult({ ...ok, games: [{ a: '파랑', as: NaN, b: '검정',
 assert.ok(L.validateResult({ ...ok, games: [{ a: '파랑', as: -1, b: '검정', bs: 2 }] }).length);
 assert.ok(L.validateResult({ ...ok, games: [{ a: '파랑', as: 1.5, b: '검정', bs: 2 }] }).length);
 assert.ok(L.validateResult({ ...ok, games: [{ a: '', as: 1, b: '검정', bs: 2 }] }).length);
+assert.ok(L.validateResult({ ...ok, scorers: [{ name: '가', goals: NaN, assists: 0 }] }).length);
+assert.ok(L.validateResult({ ...ok, scorers: [{ name: '가', goals: 1, assists: -1 }] }).length);
+assert.ok(L.validateResult({ ...ok, games: Array(7).fill(ok.games[0]) }).length);
+assert.deepEqual(L.validateResult({ ...ok, games: Array(6).fill(ok.games[0]) }), []);
 const sOk = { month: '2026-10', matches: [{ date: '2026-10-07', start: '20:00', end: '22:00', place: '북측 운동장', opp: '' }] };
 assert.deepEqual(L.validateSchedule(sOk), []);
 assert.ok(L.validateSchedule({ ...sOk, matches: [] }).length);

@@ -15,8 +15,10 @@
   label { display:block; margin:10px 0 4px; font-weight:700; }
   input { font:inherit; padding:8px; border:1px solid #bbb; border-radius:6px; box-sizing:border-box; }
   label + input, input[type=file] { width:100%; }
-  fieldset { border:1px solid #ccd; border-radius:8px; margin:10px 0; padding:8px; }
-  .row { display:flex; gap:4px; align-items:center; margin:4px 0; }
+  fieldset { border:1px solid #ccd; border-radius:8px; margin:10px 0; padding:8px; min-inline-size:0; }
+  .row { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:4px 0; }
+  #matches .row { border-bottom:1px solid #e3e6ef; padding-bottom:6px; }
+  #matches .row input { flex:1 1 40%; }
   .row input { min-width:0; flex:1; }
   .row input[type=number] { flex:0 0 3.5em; }
   .row .del { flex:0 0 auto; border:0; background:none; font-size:20px; }
@@ -106,7 +108,7 @@ const logoP = new Promise(res => { const i = new Image(); i.onload = () => res(i
 // 한글 웹폰트는 글자 범위별로 나눠 받으므로, 실제로 그릴 글자를 넘겨서 로드한다
 const loadFonts = text => Promise.race([
   Promise.all(['72px "Black Han Sans"', '40px "Noto Sans KR"', '700 40px "Noto Sans KR"']
-    .map(f => document.fonts.load(f, text + ' GONGGIGYEMATCHRESULTFIXTURES0123456789골도움경기월일정참여는톡방투표로득점'))),
+    .map(f => document.fonts.load(f, text + ' GONGGIGYEMATCHRESULTFIXTURES0123456789골도움경기월일정참여는톡방투표로득점일월화수목금토명'))),
   new Promise(r => setTimeout(r, 3000)), // 폰트 실패해도 시스템 폰트로 계속
 ]).catch(() => {});
 
@@ -120,23 +122,43 @@ async function show(canvases, caption, note = '') {
   $('#out').scrollIntoView({ behavior: 'smooth' });
 }
 
-forms.result.onsubmit = async e => {
+// 만드는 동안 버튼 잠금 + 실패 시 안내 (사진 디코딩 실패 등)
+async function busy(form, work) {
+  const btn = form.querySelector('.main');
+  btn.disabled = true; btn.textContent = '만드는 중…';
+  try { await work(); }
+  catch (err) { $('#errors').textContent = `이미지를 만들지 못했어요: ${err.message || err}\n사진을 JPG로 바꾸거나 장수를 줄여 보세요.`; }
+  finally { btn.textContent = '만들기'; check(); }
+}
+
+// iOS 메모리 보호: 사진은 한 장씩 디코딩해서 그리고 바로 해제
+async function slideFrom(file, draw) {
+  const bmp = await createImageBitmap(file);
+  try { return draw(bmp); } finally { bmp.close(); }
+}
+
+forms.result.onsubmit = e => {
   e.preventDefault();
   const r = readResult();
   if (L.validateResult(r).length) return check();
-  const photos = [...forms.result.elements.photos.files];
-  const plan = L.planSlides(photos.length);
-  const [logo, imgs] = await Promise.all([logoP, Promise.all(photos.slice(0, 1 + plan.extra).map(f => createImageBitmap(f))), loadFonts(JSON.stringify(r))]);
-  const slides = [R.cover(r, imgs[0] || null, logo), R.summary(r, logo), ...imgs.slice(1).map(R.photoSlide)];
-  show(slides, L.resultCaption(r), plan.dropped ? `사진 ${plan.dropped}장은 인스타 10장 제한으로 제외됐어요.` : '');
+  busy(forms.result, async () => {
+    const photos = [...forms.result.elements.photos.files];
+    const plan = L.planSlides(photos.length);
+    const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(r))]);
+    const slides = [photos[0] ? await slideFrom(photos[0], b => R.cover(r, b, logo)) : R.cover(r, null, logo), R.summary(r, logo)];
+    for (const f of photos.slice(1, 1 + plan.extra)) slides.push(await slideFrom(f, R.photoSlide));
+    await show(slides, L.resultCaption(r), plan.dropped ? `사진 ${plan.dropped}장은 인스타 10장 제한으로 제외됐어요.` : '');
+  });
 };
 
-forms.schedule.onsubmit = async e => {
+forms.schedule.onsubmit = e => {
   e.preventDefault();
   const s = readSchedule();
   if (L.validateSchedule(s).length) return check();
-  const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(s))]);
-  show([R.schedule(s, logo)], L.scheduleCaption(s));
+  busy(forms.schedule, async () => {
+    const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(s))]);
+    await show([R.schedule(s, logo)], L.scheduleCaption(s));
+  });
 };
 
 $('#share').onclick = async () => {
@@ -172,13 +194,14 @@ if (demo === 'result') {
   forms.result.elements.people.value = 14;
   const g = $('#games .row'); g.querySelector('[name=as]').value = 3; g.querySelector('[name=bs]').value = 2;
   addRow('games', { a: '검정', as: 1, b: '흰색', bs: 1 });
-  addRow('scorers', { name: '김예준', goals: 2, assists: 0 });
-  addRow('scorers', { name: '박수호', goals: 1, assists: 1 });
+  addRow('scorers', { name: '선수A', goals: 2, assists: 0 });
+  addRow('scorers', { name: '선수B', goals: 1, assists: 1 });
   forms.result.requestSubmit();
 } else if (demo === 'schedule') {
   document.querySelector('nav button[data-tab=schedule]').click();
   $('#matches .row [name=date]').value = `${forms.schedule.elements.month.value}-07`;
   addRow('matches', { date: `${forms.schedule.elements.month.value}-21`, start: '20:00', end: '22:00', place: '대운동장', opp: 'FC FingS' });
+  check();
   forms.schedule.requestSubmit();
 }
 </script>

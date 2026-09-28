@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공기계 포스트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700&display=swap">
+<style>
+  :root { --navy:#0E1A3C; --blue:#1E3FCB; }
+  body { margin:0; padding:16px; font-family:"Noto Sans KR", system-ui, sans-serif; background:#f3f4f8; color:#111; max-width:640px; margin-inline:auto; }
+  h1 { font-family:"Black Han Sans", sans-serif; color:var(--navy); margin:4px 0 12px; }
+  nav { display:flex; gap:8px; margin-bottom:12px; }
+  nav button { flex:1; padding:10px; border:2px solid var(--navy); background:#fff; border-radius:8px; font-weight:700; }
+  nav button.on { background:var(--navy); color:#fff; }
+  label { display:block; margin:10px 0 4px; font-weight:700; }
+  input { font:inherit; padding:8px; border:1px solid #bbb; border-radius:6px; box-sizing:border-box; }
+  label + input, input[type=file] { width:100%; }
+  fieldset { border:1px solid #ccd; border-radius:8px; margin:10px 0; padding:8px; }
+  .row { display:flex; gap:4px; align-items:center; margin:4px 0; }
+  .row input { min-width:0; flex:1; }
+  .row input[type=number] { flex:0 0 3.5em; }
+  .row .del { flex:0 0 auto; border:0; background:none; font-size:20px; }
+  button.main, .add { padding:12px; width:100%; border:0; border-radius:8px; font-weight:700; margin-top:8px; }
+  button.main { background:var(--blue); color:#fff; font-size:17px; }
+  button.main:disabled { background:#aab; }
+  .add { background:#e3e7f5; }
+  #errors { color:#c00; white-space:pre-line; }
+  #slides { display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; }
+  #slides img { width:80%; flex:0 0 auto; scroll-snap-align:center; border-radius:6px; }
+  textarea { width:100%; box-sizing:border-box; font:inherit; }
+  #note { color:#555; }
+</style>
+</head>
+<body>
+<h1>공기계 포스트</h1>
+<nav><button data-tab="result" class="on">경기 결과</button><button data-tab="schedule">월간 일정</button></nav>
+
+<form id="result">
+  <label>날짜</label><input type="date" name="date">
+  <label>장소</label><input name="place" list="places" value="북측 운동장">
+  <label>참여 인원</label><input type="number" name="people" min="0" inputmode="numeric">
+  <fieldset id="games"><legend>경기 (팀 · 점수)</legend></fieldset>
+  <button type="button" class="add" data-add="games">+ 경기 추가</button>
+  <fieldset id="scorers"><legend>득점 · 도움</legend></fieldset>
+  <button type="button" class="add" data-add="scorers">+ 선수 추가</button>
+  <label>사진 (첫 장이 대표사진, 최대 9장)</label><input type="file" name="photos" accept="image/*" multiple>
+  <label>한 줄 코멘트 (캡션용)</label><input name="comment">
+  <button class="main">만들기</button>
+</form>
+
+<form id="schedule" hidden>
+  <label>월</label><input type="month" name="month">
+  <fieldset id="matches"><legend>경기 (1~4건)</legend></fieldset>
+  <button type="button" class="add" data-add="matches">+ 경기 추가</button>
+  <button class="main">만들기</button>
+</form>
+
+<datalist id="places"><option>북측 운동장</option><option>대운동장</option></datalist>
+<p id="errors"></p>
+
+<section id="out" hidden>
+  <div id="slides"></div>
+  <button class="main" id="share">공유 / 저장</button>
+  <p id="note"></p>
+  <label>캡션</label><textarea id="caption" rows="10"></textarea>
+  <button class="main" id="copy">캡션 복사</button>
+</section>
+
+<template id="t-games"><div class="row"><input name="a" placeholder="팀A"><input name="as" type="number" min="0" inputmode="numeric" value="0"><span>:</span><input name="bs" type="number" min="0" inputmode="numeric" value="0"><input name="b" placeholder="팀B"><button type="button" class="del">×</button></div></template>
+<template id="t-scorers"><div class="row"><input name="name" placeholder="이름"><span>골</span><input name="goals" type="number" min="0" inputmode="numeric" value="0"><span>도움</span><input name="assists" type="number" min="0" inputmode="numeric" value="0"><button type="button" class="del">×</button></div></template>
+<template id="t-matches"><div class="row"><input name="date" type="date"><input name="start" type="time" value="20:00"><input name="end" type="time" value="22:00"><input name="place" list="places" placeholder="장소"><input name="opp" placeholder="상대팀(친선전)"><button type="button" class="del">×</button></div></template>
+
+<script type="module">
+import * as L from './lib.js';
+import * as R from './render.js';
+
+const $ = s => document.querySelector(s);
+const forms = { result: $('#result'), schedule: $('#schedule') };
+let files = [];
+
+function addRow(id, vals = {}) {
+  const row = $(`#t-${id}`).content.firstElementChild.cloneNode(true);
+  for (const [k, v] of Object.entries(vals)) row.querySelector(`[name="${k}"]`).value = v;
+  row.querySelector('.del').onclick = () => { row.remove(); check(); };
+  $('#' + id).append(row);
+}
+const rows = id => [...$('#' + id).querySelectorAll('.row')].map(r =>
+  Object.fromEntries([...r.querySelectorAll('input')].map(i =>
+    [i.name, i.type === 'number' ? (i.value === '' ? NaN : Number(i.value)) : i.value.trim()])));
+
+const readResult = () => {
+  const f = forms.result.elements;
+  return { date: f.date.value, place: f.place.value.trim(), people: Number(f.people.value) || 0,
+    games: rows('games'), scorers: rows('scorers').filter(s => s.name), comment: f.comment.value.trim() };
+};
+const readSchedule = () => ({ month: forms.schedule.elements.month.value, matches: rows('matches') });
+const current = () => (forms.result.hidden ? 'schedule' : 'result');
+
+function check() {
+  const errs = current() === 'result' ? L.validateResult(readResult()) : L.validateSchedule(readSchedule());
+  $('#errors').textContent = errs.join('\n');
+  forms[current()].querySelector('.main').disabled = errs.length > 0;
+}
+
+const logoP = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = 'assets/logo.png'; });
+// 한글 웹폰트는 글자 범위별로 나눠 받으므로, 실제로 그릴 글자를 넘겨서 로드한다
+const loadFonts = text => Promise.race([
+  Promise.all(['72px "Black Han Sans"', '40px "Noto Sans KR"', '700 40px "Noto Sans KR"']
+    .map(f => document.fonts.load(f, text + ' GONGGIGYEMATCHRESULTFIXTURES0123456789골도움경기월일정참여는톡방투표로득점'))),
+  new Promise(r => setTimeout(r, 3000)), // 폰트 실패해도 시스템 폰트로 계속
+]).catch(() => {});
+
+async function show(canvases, caption, note = '') {
+  const blobs = await Promise.all(canvases.map(c => new Promise(r => c.toBlob(r, 'image/png'))));
+  files = blobs.map((b, i) => new File([b], `gonggigye_${i + 1}.png`, { type: 'image/png' }));
+  $('#slides').replaceChildren(...files.map(f => Object.assign(new Image(), { src: URL.createObjectURL(f) })));
+  $('#caption').value = caption;
+  $('#note').textContent = note;
+  $('#out').hidden = false;
+  $('#out').scrollIntoView({ behavior: 'smooth' });
+}
+
+forms.result.onsubmit = async e => {
+  e.preventDefault();
+  const r = readResult();
+  if (L.validateResult(r).length) return check();
+  const photos = [...forms.result.elements.photos.files];
+  const plan = L.planSlides(photos.length);
+  const [logo, imgs] = await Promise.all([logoP, Promise.all(photos.slice(0, 1 + plan.extra).map(f => createImageBitmap(f))), loadFonts(JSON.stringify(r))]);
+  const slides = [R.cover(r, imgs[0] || null, logo), R.summary(r, logo), ...imgs.slice(1).map(R.photoSlide)];
+  show(slides, L.resultCaption(r), plan.dropped ? `사진 ${plan.dropped}장은 인스타 10장 제한으로 제외됐어요.` : '');
+};
+
+forms.schedule.onsubmit = async e => {
+  e.preventDefault();
+  const s = readSchedule();
+  if (L.validateSchedule(s).length) return check();
+  const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(s))]);
+  show([R.schedule(s, logo)], L.scheduleCaption(s));
+};
+
+$('#share').onclick = async () => {
+  const saveHint = '이미지를 길게 눌러 사진에 저장하세요.';
+  if (!navigator.canShare?.({ files })) return ($('#note').textContent = saveHint);
+  try { await navigator.share({ files }); }
+  catch (err) { if (err.name !== 'AbortError') $('#note').textContent = saveHint; }
+};
+$('#copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('#caption').value); $('#copy').textContent = '복사됨!'; }
+  catch { $('#caption').select(); $('#note').textContent = '캡션을 길게 눌러 복사하세요.'; }
+};
+
+document.querySelectorAll('[data-add]').forEach(b => (b.onclick = () => { addRow(b.dataset.add); check(); }));
+document.querySelectorAll('nav button').forEach(b => (b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  for (const [k, f] of Object.entries(forms)) f.hidden = k !== b.dataset.tab;
+  $('#out').hidden = true; check();
+}));
+document.addEventListener('input', check);
+
+// 기본값
+const today = new Date();
+forms.result.elements.date.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+forms.schedule.elements.month.value = L.nextMonth(today);
+addRow('games', { a: '파랑', b: '검정' });
+addRow('matches', { place: '북측 운동장' });
+check();
+
+// ?demo=result | ?demo=schedule : 샘플로 바로 그려 보기 (개발 확인용)
+const demo = new URLSearchParams(location.search).get('demo');
+if (demo === 'result') {
+  forms.result.elements.people.value = 14;
+  const g = $('#games .row'); g.querySelector('[name=as]').value = 3; g.querySelector('[name=bs]').value = 2;
+  addRow('games', { a: '검정', as: 1, b: '흰색', bs: 1 });
+  addRow('scorers', { name: '김예준', goals: 2, assists: 0 });
+  addRow('scorers', { name: '박수호', goals: 1, assists: 1 });
+  forms.result.requestSubmit();
+} else if (demo === 'schedule') {
+  document.querySelector('nav button[data-tab=schedule]').click();
+  $('#matches .row [name=date]').value = `${forms.schedule.elements.month.value}-07`;
+  addRow('matches', { date: `${forms.schedule.elements.month.value}-21`, start: '20:00', end: '22:00', place: '대운동장', opp: 'FC FingS' });
+  forms.schedule.requestSubmit();
+}
+</script>
+</body>
+</html>

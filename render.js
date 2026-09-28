@@ -19,14 +19,15 @@ function drawPhoto(ctx, img) {
   const c = coverCrop(img.width, img.height, W, H);
   ctx.drawImage(img, c.sx, c.sy, c.sw, c.sh, 0, 0, W, H);
 }
-function text(ctx, s, x, y, size, { font = BODY, color = COLORS.white, align = 'left', weight = '' } = {}) {
+function text(ctx, s, x, y, size, { font = BODY, color = COLORS.white, align = 'left', weight = '', max = W - 128 } = {}) {
   ctx.font = `${weight} ${size}px ${font}`.trim();
   ctx.fillStyle = color; ctx.textAlign = align;
-  ctx.fillText(s, x, y, W - 128); // maxWidth: 긴 이름은 가로로 압축
+  ctx.fillText(s, x, y, max); // max: 긴 이름은 가로로 압축
 }
 function logo(ctx, img, x, y, size) {
   if (img) ctx.drawImage(img, x, y, size, size);
-  else text(ctx, 'GONGGIGYE', x, y + 56, 56, { font: TITLE });
+  else if (x > W / 2) text(ctx, 'GONGGIGYE', x + size, y + 56, 56, { font: TITLE, align: 'right', max: 300 });
+  else text(ctx, 'GONGGIGYE', x, y + 56, 56, { font: TITLE, max: 300 });
 }
 const scoreLine = g => `${g.a}  ${g.as} : ${g.bs}  ${g.b}`;
 
@@ -36,6 +37,7 @@ export function cover(r, img, logoImg) {
   const g = ctx.createLinearGradient(0, H * 0.35, 0, H);
   g.addColorStop(0, 'rgba(14,26,60,0)'); g.addColorStop(1, 'rgba(14,26,60,0.95)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 16; // 밝은 사진 위에서도 글자가 보이게
   logo(ctx, logoImg, 48, 48, 170);
   const n = r.games.length;
   let y = n === 1 ? H - 370 : H - 190 - n * 76;

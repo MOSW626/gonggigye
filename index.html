@@ -99,10 +99,27 @@
   .zoomrow input::-moz-range-thumb { width:28px; height:28px; border-radius:50%; background:#fff; border:0; }
   #editor .ghost { background:rgba(255,255,255,.1); color:#fff; }
   #editor .cta { background:none; }
+  .slide .dl { right:auto; left:10px; }
+  #out:not(.ready) .res, #out.ready #empty { display:none; }
   [hidden] { display:none !important; }
+  /* PC: 왼쪽 입력 · 오른쪽 결과 */
+  @media (min-width: 900px) {
+    .app { display:grid; grid-template-columns:minmax(0, 560px) minmax(0, 520px); gap:32px; justify-content:center; align-items:start; padding:0 24px; }
+    .left .wrap { padding-bottom:16px; }
+    .left .cta { position:sticky; bottom:0; padding:12px 0 20px; }
+    #out, #out[hidden] { display:block !important; position:sticky; top:0; inset:auto; height:100vh; background:none; z-index:auto; }
+    #out .wrap { padding-bottom:16px; }
+    #out .cta { position:sticky; bottom:0; padding:12px 0 20px; }
+    #back { display:none; }
+    #out .row2 { grid-template-columns:1fr; }
+    #editor .wrap { max-width:520px; }
+    .slide { width:72%; }
+    #slides { margin:0 0 8px; padding:0; }
+  }
 </style>
 </head>
 <body>
+<div class="app"><div class="left">
 <div class="wrap">
   <header><img src="assets/logo.png" alt="" onerror="this.remove()"><b>공기계 포스트</b></header>
   <div class="seg"><button data-tab="result" class="on">경기 결과</button><button data-tab="schedule">월간 일정</button></div>
@@ -160,9 +177,12 @@
 </div>
 
 <div class="cta"><div class="in"><p id="errors"></p><button class="primary" id="go">이미지 만들기</button></div></div>
+</div>
 
 <section id="out" hidden>
   <div class="wrap">
+    <div id="empty"><h1>미리보기</h1><p class="hint">왼쪽을 채우고 [이미지 만들기]를 누르면 여기에 나와요</p></div>
+    <div class="res">
     <h1>완성됐어요 🎉</h1>
     <p class="hint" id="note">옆으로 넘겨서 확인해 보세요</p>
     <div id="slides"></div>
@@ -173,13 +193,15 @@
       <textarea id="caption" rows="9"></textarea>
       <button class="ghost copy" id="copy">캡션 복사하기</button>
     </section>
+    </div>
   </div>
-  <div class="cta"><div class="in row2"><button class="secondary" id="back">수정하기</button><button class="primary" id="share">공유 / 저장</button></div></div>
+  <div class="cta res"><div class="in row2"><button class="secondary" id="back">수정하기</button><button class="primary" id="share">공유 / 저장</button></div></div>
 </section>
+</div>
 <section id="editor" hidden>
   <div class="wrap">
     <h1>사진 맞추기</h1>
-    <p class="hint">끌어서 위치를, 두 손가락이나 아래 막대로 크기를 조절하세요</p>
+    <p class="hint" id="ed-hint">끌어서 위치를, 두 손가락이나 아래 막대로 크기를 조절하세요</p>
     <canvas id="edc" width="1080" height="1350"></canvas>
     <div class="zoomrow"><span>－</span><input type="range" id="zoom" min="40" max="400" step="1" aria-label="사진 크기"><span>＋</span></div>
     <button class="ghost" id="ed-reset">자동으로 되돌리기</button>
@@ -222,6 +244,7 @@ const forms = { result: $('#result'), schedule: $('#schedule') };
 const tab = () => (forms.result.hidden ? 'schedule' : 'result');
 let photos = [];   // 사진 파일 (0번이 표지)
 let files = [];    // 만들어진 이미지
+const isPC = matchMedia('(pointer: fine)').matches; // 마우스 쓰는 기기 = 다운로드 방식
 
 // ── 브라우저에 기억 (최근 선수 이름·장소) ──
 const store = {
@@ -356,6 +379,11 @@ function showSlides() {
       b.onclick = () => openEditor(i);
       d.append(b);
     }
+    if (isPC) {
+      const b = Object.assign(document.createElement('button'), { className: 'edit dl', textContent: '⬇ 저장' });
+      b.onclick = () => download(files[i]);
+      d.append(b);
+    }
     return d;
   }));
 }
@@ -371,7 +399,7 @@ $('#go').onclick = async () => {
     $('#count').textContent = `${files.length}장`;
     $('#note').textContent = note || (session.specs.some(sp => sp.file) ? '사진이 어색하면 ‘사진 맞추기’로 크기와 위치를 조절하세요' : '옆으로 넘겨서 확인해 보세요');
     $('#caption').value = caption;
-    $('#out').hidden = false; $('#out').scrollTop = 0;
+    $('#out').hidden = false; $('#out').classList.add('ready'); $('#out').scrollTop = 0;
   } catch (err) {
     $('#errors').textContent = '이미지를 만들지 못했어요. 사진 장수를 줄이거나 다른 사진으로 해 보세요.';
     console.error(err);
@@ -384,7 +412,17 @@ $('#go').onclick = async () => {
 let toastT;
 const toast = m => { $('#toast').textContent = m; $('#toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('#toast').classList.remove('on'), 1800); };
 $('#back').onclick = () => { $('#out').hidden = true; };
+const download = f => {
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(f), download: f.name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+if (isPC) {
+  $('#share').textContent = '전체 다운로드';
+  $('#ed-hint').textContent = '마우스로 끌어서 위치를, 휠이나 아래 막대로 크기를 조절하세요';
+}
 $('#share').onclick = async () => {
+  if (isPC) { files.forEach((f, i) => setTimeout(() => download(f), i * 300)); return toast(`${files.length}장을 내려받았어요`); }
   if (!navigator.canShare?.({ files })) return toast('이미지를 길게 눌러 저장해 주세요');
   try { await navigator.share({ files }); }
   catch (err) { if (err.name !== 'AbortError') toast('이미지를 길게 눌러 저장해 주세요'); }

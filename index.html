@@ -236,8 +236,9 @@
 </div></template>
 
 <script type="module">
-import * as L from './lib.js';
-import * as R from './render.js';
+// ?v= : 배포할 때마다 올림 (브라우저가 예전 JS를 10분간 재사용하는 캐시 우회)
+import * as L from './lib.js?v=8';
+import * as R from './render.js?v=8';
 
 const $ = s => document.querySelector(s);
 const forms = { result: $('#result'), schedule: $('#schedule') };
@@ -435,7 +436,6 @@ $('#copy').onclick = async () => {
 // ── 사진 맞추기 편집기: 드래그 = 이동, 핀치/막대/휠 = 확대·축소 ──
 const ed = { i: -1, bmp: null, bg: null, view: null, auto: null, raf: 0 };
 const edc = $('#edc');
-const kindOf = k => (k === 'player' ? 'player' : k === 'cover' ? 'cover' : 'photo');
 function edDraw() {
   cancelAnimationFrame(ed.raf);
   ed.raf = requestAnimationFrame(() => renderSpec(session.specs[ed.i], ed.bmp, { view: ed.view, bg: ed.bg, target: edc }));
@@ -446,7 +446,7 @@ async function openEditor(i) {
   ed.i = i;
   ed.bmp = await createImageBitmap(sp.file);
   ed.bg = R.makeBg(ed.bmp);
-  ed.auto = L.defaultView(ed.bmp.width, ed.bmp.height, kindOf(sp.kind));
+  ed.auto = R.autoView(sp.kind, ed.bmp, session.r);
   ed.view = { ...(sp.view || ed.auto) };
   $('#editor').hidden = false;
   edDraw();

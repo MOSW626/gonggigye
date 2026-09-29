@@ -1,4 +1,4 @@
-import { COLORS, coverCrop, formatDate, sortedScorers, MONTHS_EN, photoRect, defaultView } from './lib.js';
+import { COLORS, coverCrop, formatDate, sortedScorers, MONTHS_EN, photoRect, defaultView } from './lib.js?v=8';
 
 export const W = 1080, H = 1350;
 const TITLE = '"Black Han Sans", "Pretendard", "Apple SD Gothic Neo", sans-serif';
@@ -51,7 +51,7 @@ function boxBlur(t, pass) {
   for (let p = 0; p < pass; p++) {
     cc.clearRect(0, 0, t.width, t.height); cc.drawImage(t, 0, 0);
     tc.globalAlpha = 1 / 5;
-    for (const [dx, dy] of [[0, 0], [-2, 0], [2, 0], [0, -2], [0, 2]]) tc.drawImage(copy, dx, dy);
+    for (const [dx, dy] of [[0, 0], [-3, 0], [3, 0], [0, -3], [0, 3]]) tc.drawImage(copy, dx, dy);
     tc.globalAlpha = 1;
   }
 }
@@ -61,7 +61,7 @@ export function makeBg(img) {
   // 흐림: ctx.filter는 iOS Safari가 지원하지 않아 (선명한 사진이 겹쳐 보임) 쓰지 않는다.
   // 대신 아주 작게 줄였다가(3단계) 다시 키워서 모든 브라우저에서 같은 흐림을 만든다.
   let src = img, sx = cr.sx, sy = cr.sy, sw = cr.sw, sh = cr.sh;
-  for (const k of [8, 24, 48]) {
+  for (const k of [8, 24, 72]) {
     const t = Object.assign(document.createElement('canvas'), { width: Math.round(W / k), height: Math.round(H / k) });
     const tc = t.getContext('2d');
     tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
@@ -74,7 +74,7 @@ export function makeBg(img) {
     const tc = t.getContext('2d');
     tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
     tc.drawImage(src, 0, 0, sw, sh, 0, 0, t.width, t.height);
-    if (k === 12) boxBlur(t, 3);
+    if (k === 12) boxBlur(t, 6);
     src = t; sw = t.width; sh = t.height;
   }
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
@@ -83,7 +83,7 @@ export function makeBg(img) {
   return c;
 }
 // 사진을 view대로 그리고, 캔버스 안에 들어온 가장자리는 흐린 배경에 녹인다 (페더)
-const FEATHER = 130;
+const FEATHER = 200;
 let fgCanvas;
 function photoLayer(ctx, img, view, bg) {
   ctx.drawImage(bg || makeBg(img), 0, 0);
@@ -120,20 +120,26 @@ function scoreRow(ctx, g, cx, y, size) {
 }
 const meta = r => [formatDate(r.date), r.place, r.people ? `${r.people}명` : ''].filter(Boolean).join(' · ');
 
+// 표지 레이아웃: 스코어 블록은 항상 아래에 고정, 사진은 그 위에 붙인다
+function coverLayout(r) {
+  const n = Math.min(r.games.length, 3);
+  const resH = n === 1 ? 300 : 110 + n * 96; // 결과 블록 높이
+  return { n, y: H - resH - 60 };           // y = 'MATCH RESULT' 글자 기준선
+}
+// 장 종류별 자동 배치 (편집기의 '자동으로 되돌리기'도 이걸 씀)
+export function autoView(kind, img, r) {
+  if (kind === 'cover') return defaultView(img.width, img.height, 'cover', { bottom: coverLayout(r).y + 80 });
+  return defaultView(img.width, img.height, kind === 'player' ? 'player' : 'photo');
+}
+
 // o = { view, bg, target } — 모두 선택. view가 없으면 자동 배치
 export function cover(r, img, logoImg, o = {}) {
   const [c, ctx] = canvas(o.target);
   ctx.fillStyle = COLORS.navy; ctx.fillRect(0, 0, W, H);
-  const games = r.games.slice(0, 3);
-  const resH = games.length === 1 ? 300 : 110 + games.length * 96; // 결과 블록 높이
-  let y = H - resH - 60;
-  if (img) {
-    const auto = defaultView(img.width, img.height, 'cover');
-    photoLayer(ctx, img, o.view || auto, o.bg);
-    // 글자 위치는 자동 배치 기준으로 고정 (편집 중에 글자가 따라 움직이지 않게)
-    const pr = photoRect(img.width, img.height, auto);
-    y = Math.min(y, Math.max(760, pr.y + pr.h - 80));
-  } else stripes(ctx, 0, 0, W, y - 100, 12);
+  const { n, y } = coverLayout(r);
+  const games = r.games.slice(0, n);
+  if (img) photoLayer(ctx, img, o.view || autoView('cover', img, r), o.bg);
+  else stripes(ctx, 0, 0, W, y - 100, 12);
   bottomShade(ctx, y - 260);
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 14;
   logo(ctx, logoImg, 56, 36, 110);
@@ -194,7 +200,7 @@ export function summary(r, logoImg) {
 // 잘한 선수 카드: 선수 사진 꽉 채움 + 이름 + 기록
 export function playerCard(p, r, img, logoImg, badge, o = {}) {
   const [c, ctx] = canvas(o.target);
-  photoLayer(ctx, img, o.view || defaultView(img.width, img.height, 'player'), o.bg);
+  photoLayer(ctx, img, o.view || autoView('player', img), o.bg);
   bottomShade(ctx, H * 0.45);
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 16;
   if (badge) pill(ctx, badge, 56, 56);
@@ -222,7 +228,7 @@ export function badgeFor(p, i, list) {
 // 추가 사진: 자동 배치(가로는 1.25배 확대 + 위아래 녹임) 또는 사용자가 맞춘 view
 export function photoSlide(img, o = {}) {
   const [c, ctx] = canvas(o.target);
-  photoLayer(ctx, img, o.view || defaultView(img.width, img.height, 'photo'), o.bg);
+  photoLayer(ctx, img, o.view || autoView('photo', img), o.bg);
   return c;
 }
 

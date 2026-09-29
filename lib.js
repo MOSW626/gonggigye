@@ -107,9 +107,9 @@ export function photoRect(sw, sh, { zoom, cx, cy }) {
   return { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h };
 }
 
-// 자동 배치. kind: 'cover'(표지) | 'player'(선수 카드) | 'photo'(추가 사진)
+// 자동 배치. kind: 'cover'(표지, bottom 필요) | 'player'(선수 카드) | 'photo'(추가 사진)
 // 가로 사진: 폭 맞춤에서 1.25배 (좌우 한쪽 최대 12%만 잘림) / 세로 사진·선수: 꽉 채우고 위 30% 초점
-export function defaultView(sw, sh, kind) {
+export function defaultView(sw, sh, kind, { bottom } = {}) {
   const h0 = sh * (CW / sw);
   if (kind === 'player' || h0 >= CH) {
     const zoom = Math.max(1, CH / h0), h = Math.round(h0 * zoom);
@@ -118,7 +118,8 @@ export function defaultView(sw, sh, kind) {
   }
   const zoom = 1 / Math.max(1 / 1.25, 1 - 2 * 0.12);
   const h = photoRect(sw, sh, { zoom, cx: 0, cy: 0 }).h;
-  return { zoom, cx: CW / 2, cy: kind === 'cover' ? 110 + h / 2 : CH / 2 };
+  // 표지: 사진 아래 끝을 bottom(스코어 블록 위)에 맞춤 → 스코어 아래 빈 공간이 안 생김
+  return { zoom, cx: CW / 2, cy: bottom ? bottom - h / 2 : CH / 2 };
 }
 
 export function clampView({ zoom, cx, cy }) {

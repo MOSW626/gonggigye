@@ -84,8 +84,8 @@ ${L.HASHTAGS}`);
 // 가로 4:3 사진, 추가 사진 장: 폭 맞춤 1.25배, 가운데
 assert.deepEqual(L.defaultView(4000, 3000, 'photo'), { zoom: 1.25, cx: 540, cy: 675 });
 assert.deepEqual(L.photoRect(4000, 3000, { zoom: 1.25, cx: 540, cy: 675 }), { x: -135, y: 169, w: 1350, h: 1013 });
-// 가로 사진 표지: 로고 아래(110)부터
-assert.deepEqual(L.defaultView(4000, 3000, 'cover'), { zoom: 1.25, cx: 540, cy: 110 + 1013 / 2 });
+// 가로 사진 표지: 사진 아래 끝이 bottom에 닿게
+assert.deepEqual(L.defaultView(4000, 3000, 'cover', { bottom: 1070 }), { zoom: 1.25, cx: 540, cy: 1070 - 1013 / 2 });
 // 세로 3:4 선수 사진: 캔버스 높이 꽉 채움(폭 맞춤이면 1440 → 이미 채움, zoom 1), 위 30% 초점
 assert.deepEqual(L.defaultView(3000, 4000, 'player'), { zoom: 1, cx: 540, cy: 1440 / 2 - (1440 - 1350) * 0.3 });
 // 아주 긴 세로 1:2 → 높이 2160, zoom 1

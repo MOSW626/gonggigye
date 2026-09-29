@@ -80,4 +80,20 @@ October fixtures ⚽ 10/7 20:00 · 10/21 20:00 vs FC FingS
 
 ${L.HASHTAGS}`);
 
+// ── v2.1 사진 배치 (view = { zoom, cx, cy }) ──
+// 가로 4:3 사진, 추가 사진 장: 폭 맞춤 1.25배, 가운데
+assert.deepEqual(L.defaultView(4000, 3000, 'photo'), { zoom: 1.25, cx: 540, cy: 675 });
+assert.deepEqual(L.photoRect(4000, 3000, { zoom: 1.25, cx: 540, cy: 675 }), { x: -135, y: 169, w: 1350, h: 1013 });
+// 가로 사진 표지: 로고 아래(110)부터
+assert.deepEqual(L.defaultView(4000, 3000, 'cover'), { zoom: 1.25, cx: 540, cy: 110 + 1013 / 2 });
+// 세로 3:4 선수 사진: 캔버스 높이 꽉 채움(폭 맞춤이면 1440 → 이미 채움, zoom 1), 위 30% 초점
+assert.deepEqual(L.defaultView(3000, 4000, 'player'), { zoom: 1, cx: 540, cy: 1440 / 2 - (1440 - 1350) * 0.3 });
+// 아주 긴 세로 1:2 → 높이 2160, zoom 1
+assert.equal(L.defaultView(1000, 2000, 'photo').zoom, 1);
+// 정사각 1:1 세로취급 아님 → 가로 규칙(1.25배)
+assert.equal(L.defaultView(1000, 1000, 'photo').zoom, 1.25);
+// clampView: zoom 0.4~4, 중심은 캔버스 안
+assert.deepEqual(L.clampView({ zoom: 9, cx: -500, cy: 5000 }), { zoom: 4, cx: 0, cy: 1350 });
+assert.deepEqual(L.clampView({ zoom: 0.1, cx: 300, cy: 300 }), { zoom: 0.4, cx: 300, cy: 300 });
+
 console.log('OK');

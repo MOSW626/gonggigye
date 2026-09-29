@@ -85,6 +85,20 @@
   .copy { margin-top:10px; }
   #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 96px); transform:translate(-50%, 20px); background:rgba(25,31,40,.92); color:#fff; padding:12px 18px; border-radius:14px; font-size:15px; font-weight:600; opacity:0; transition:.25s; pointer-events:none; z-index:9; white-space:nowrap; }
   #toast.on { opacity:1; transform:translate(-50%, 0); }
+  .slide { position:relative; width:84%; flex:0 0 auto; scroll-snap-align:center; }
+  .slide img { width:100% !important; }
+  .slide .edit { position:absolute; right:10px; bottom:10px; border:0; background:rgba(255,255,255,.92); color:var(--text); font:inherit; font-size:14px; font-weight:700; border-radius:12px; padding:8px 12px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  #editor { position:fixed; inset:0; background:#191F28; z-index:7; overflow:hidden; color:#fff; }
+  #editor .wrap { padding-bottom:0; }
+  #editor h1 { font-size:22px; font-weight:800; margin:8px 4px 4px; }
+  #editor .hint { color:#B0B8C1; margin:0 4px 12px; }
+  #edc { display:block; width:min(100%, calc(62vh * 0.8)); aspect-ratio:4 / 5; height:auto; margin:0 auto; border-radius:16px; touch-action:none; cursor:grab; background:#000; }
+  .zoomrow { display:flex; align-items:center; gap:12px; margin:16px 4px 8px; font-size:20px; font-weight:700; color:#B0B8C1; }
+  .zoomrow input { flex:1; min-height:0 !important; height:6px; padding:0; border:0 !important; border-radius:3px; background:rgba(255,255,255,.25) !important; }
+  .zoomrow input::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+  .zoomrow input::-moz-range-thumb { width:28px; height:28px; border-radius:50%; background:#fff; border:0; }
+  #editor .ghost { background:rgba(255,255,255,.1); color:#fff; }
+  #editor .cta { background:none; }
   [hidden] { display:none !important; }
 </style>
 </head>
@@ -161,6 +175,16 @@
     </section>
   </div>
   <div class="cta"><div class="in row2"><button class="secondary" id="back">수정하기</button><button class="primary" id="share">공유 / 저장</button></div></div>
+</section>
+<section id="editor" hidden>
+  <div class="wrap">
+    <h1>사진 맞추기</h1>
+    <p class="hint">끌어서 위치를, 두 손가락이나 아래 막대로 크기를 조절하세요</p>
+    <canvas id="edc" width="1080" height="1350"></canvas>
+    <div class="zoomrow"><span>－</span><input type="range" id="zoom" min="40" max="400" step="1" aria-label="사진 크기"><span>＋</span></div>
+    <button class="ghost" id="ed-reset">자동으로 되돌리기</button>
+  </div>
+  <div class="cta"><div class="in row2"><button class="secondary" id="ed-cancel">취소</button><button class="primary" id="ed-done">완료</button></div></div>
 </section>
 <div id="toast"></div>
 
@@ -284,25 +308,56 @@ async function withBitmap(file, draw) {
   try { return draw(bmp); } finally { bmp.close(); }
 }
 
+// 슬라이드 설계도: 사진이 있는 장은 나중에 편집기로 다시 그릴 수 있게 file/view를 기억
+let session = null;
+function renderSpec(sp, img, o = {}) {
+  const { r, logo } = session;
+  if (sp.kind === 'cover') return R.cover(r, img, logo, o);
+  if (sp.kind === 'summary') return R.summary(r, logo);
+  if (sp.kind === 'player') return R.playerCard(sp.p, r, img, logo, sp.badge, o);
+  if (sp.kind === 'photo') return R.photoSlide(img, o);
+  return R.schedule(sp.s, logo);
+}
+const renderFile = sp => (sp.file ? withBitmap(sp.file, b => renderSpec(sp, b, { view: sp.view })) : renderSpec(sp, null));
+
 async function makeResult() {
   const r = readResult();
-  const players = L.sortedScorers(r.scorers).filter(p => p.photo);
+  const all = L.sortedScorers(r.scorers);
+  const players = all.filter(p => p.photo);
   const plan = L.planSlides(photos.length, players.length);
   const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(r))]);
-  const all = L.sortedScorers(r.scorers);
-  const slides = [photos[0] ? await withBitmap(photos[0], b => R.cover(r, b, logo)) : R.cover(r, null, logo), R.summary(r, logo)];
-  for (const p of players.slice(0, plan.players)) {
-    const i = all.indexOf(p);
-    slides.push(await withBitmap(p.photo, b => R.playerCard(p, r, b, logo, R.badgeFor(p, i, all))));
-  }
-  for (const f of photos.slice(1, 1 + plan.extra)) slides.push(await withBitmap(f, R.photoSlide));
+  session = { r, logo, specs: [
+    { kind: 'cover', file: photos[0] || null },
+    { kind: 'summary' },
+    ...players.slice(0, plan.players).map(p => ({ kind: 'player', file: p.photo, p, badge: R.badgeFor(p, all.indexOf(p), all) })),
+    ...photos.slice(1, 1 + plan.extra).map(f => ({ kind: 'photo', file: f })),
+  ] };
+  const slides = [];
+  for (const sp of session.specs) slides.push(await renderFile(sp));
   store.add('gg_players', r.scorers.map(s => s.name)); fillRecent();
   return [slides, L.resultCaption(r), plan.dropped ? `인스타는 10장까지라 ${plan.dropped}장은 뺐어요` : ''];
 }
 async function makeSchedule() {
   const s = readSchedule();
   const [logo] = await Promise.all([logoP, loadFonts(JSON.stringify(s))]);
+  session = { logo, specs: [{ kind: 'schedule', s }] };
   return [[R.schedule(s, logo)], L.scheduleCaption(s), ''];
+}
+
+const toFile = (c, i) => new Promise(r => c.toBlob(b => r(new File([b], `gonggigye_${i + 1}.png`, { type: 'image/png' })), 'image/png'));
+function showSlides() {
+  for (const i of $('#slides').querySelectorAll('img')) URL.revokeObjectURL(i.src);
+  $('#slides').replaceChildren(...files.map((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'slide';
+    d.append(Object.assign(new Image(), { src: URL.createObjectURL(f), alt: `${i + 1}번째 이미지` }));
+    if (session.specs[i]?.file) {
+      const b = Object.assign(document.createElement('button'), { className: 'edit', textContent: '✎ 사진 맞추기' });
+      b.onclick = () => openEditor(i);
+      d.append(b);
+    }
+    return d;
+  }));
 }
 
 $('#go').onclick = async () => {
@@ -311,12 +366,10 @@ $('#go').onclick = async () => {
   go.disabled = true; go.textContent = '만드는 중…';
   try {
     const [canvases, caption, note] = await (tab() === 'result' ? makeResult() : makeSchedule());
-    const blobs = await Promise.all(canvases.map(c => new Promise(r => c.toBlob(r, 'image/png'))));
-    for (const i of $('#slides').querySelectorAll('img')) URL.revokeObjectURL(i.src);
-    files = blobs.map((b, i) => new File([b], `gonggigye_${i + 1}.png`, { type: 'image/png' }));
-    $('#slides').replaceChildren(...files.map(f => Object.assign(new Image(), { src: URL.createObjectURL(f) })));
+    files = await Promise.all(canvases.map(toFile));
+    showSlides();
     $('#count').textContent = `${files.length}장`;
-    $('#note').textContent = note || '옆으로 넘겨서 확인해 보세요';
+    $('#note').textContent = note || (session.specs.some(sp => sp.file) ? '사진이 어색하면 ‘사진 맞추기’로 크기와 위치를 조절하세요' : '옆으로 넘겨서 확인해 보세요');
     $('#caption').value = caption;
     $('#out').hidden = false; $('#out').scrollTop = 0;
   } catch (err) {
@@ -339,6 +392,63 @@ $('#share').onclick = async () => {
 $('#copy').onclick = async () => {
   try { await navigator.clipboard.writeText($('#caption').value); toast('캡션을 복사했어요'); }
   catch { const t = $('#caption'); t.focus(); t.setSelectionRange(0, t.value.length); toast('선택된 캡션을 복사해 주세요'); }
+};
+
+// ── 사진 맞추기 편집기: 드래그 = 이동, 핀치/막대/휠 = 확대·축소 ──
+const ed = { i: -1, bmp: null, bg: null, view: null, auto: null, raf: 0 };
+const edc = $('#edc');
+const kindOf = k => (k === 'player' ? 'player' : k === 'cover' ? 'cover' : 'photo');
+function edDraw() {
+  cancelAnimationFrame(ed.raf);
+  ed.raf = requestAnimationFrame(() => renderSpec(session.specs[ed.i], ed.bmp, { view: ed.view, bg: ed.bg, target: edc }));
+  $('#zoom').value = Math.round(ed.view.zoom * 100);
+}
+async function openEditor(i) {
+  const sp = session.specs[i];
+  ed.i = i;
+  ed.bmp = await createImageBitmap(sp.file);
+  ed.bg = R.makeBg(ed.bmp);
+  ed.auto = L.defaultView(ed.bmp.width, ed.bmp.height, kindOf(sp.kind));
+  ed.view = { ...(sp.view || ed.auto) };
+  $('#editor').hidden = false;
+  edDraw();
+}
+function closeEditor() { $('#editor').hidden = true; ed.bmp?.close(); ed.bmp = ed.bg = null; }
+// 화면 좌표 → 캔버스(1080) 좌표
+const toCanvas = (x, y) => { const b = edc.getBoundingClientRect(); return [(x - b.left) * (R.W / b.width), (y - b.top) * (R.H / b.height)]; };
+// (px,py)를 중심으로 f배 확대
+function zoomAt(f, px, py) {
+  const v = ed.view, nz = Math.min(4, Math.max(0.4, v.zoom * f)), k = nz / v.zoom;
+  ed.view = L.clampView({ zoom: nz, cx: px + (v.cx - px) * k, cy: py + (v.cy - py) * k });
+}
+const pts = new Map();
+let last = null;
+const pinch = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; };
+edc.addEventListener('pointerdown', e => { edc.setPointerCapture(e.pointerId); pts.set(e.pointerId, toCanvas(e.clientX, e.clientY)); last = pts.size === 2 ? pinch() : null; });
+edc.addEventListener('pointermove', e => {
+  if (!pts.has(e.pointerId)) return;
+  const prev = pts.get(e.pointerId), cur = toCanvas(e.clientX, e.clientY);
+  pts.set(e.pointerId, cur);
+  if (pts.size === 1) ed.view = L.clampView({ ...ed.view, cx: ed.view.cx + cur[0] - prev[0], cy: ed.view.cy + cur[1] - prev[1] });
+  else if (pts.size === 2 && last) {
+    const now = pinch();
+    ed.view = L.clampView({ ...ed.view, cx: ed.view.cx + now.m[0] - last.m[0], cy: ed.view.cy + now.m[1] - last.m[1] });
+    zoomAt(now.d / last.d, now.m[0], now.m[1]);
+    last = now;
+  }
+  edDraw();
+});
+const up = e => { pts.delete(e.pointerId); last = pts.size === 2 ? pinch() : null; };
+edc.addEventListener('pointerup', up); edc.addEventListener('pointercancel', up);
+edc.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = toCanvas(e.clientX, e.clientY); zoomAt(Math.exp(-e.deltaY * 0.0015), x, y); edDraw(); }, { passive: false });
+$('#zoom').oninput = e => { zoomAt(e.target.value / 100 / ed.view.zoom, ed.view.cx, ed.view.cy); edDraw(); };
+$('#ed-reset').onclick = () => { ed.view = { ...ed.auto }; edDraw(); };
+$('#ed-cancel').onclick = closeEditor;
+$('#ed-done').onclick = async () => {
+  const sp = session.specs[ed.i];
+  sp.view = { ...ed.view };
+  files[ed.i] = await toFile(renderSpec(sp, ed.bmp, { view: sp.view, bg: ed.bg }), ed.i);
+  closeEditor(); showSlides(); toast('사진을 맞췄어요');
 };
 
 // ── 탭 ──
@@ -366,14 +476,17 @@ fillRecent();
 check();
 
 // ?demo=result | ?demo=schedule : 샘플로 바로 만들어 보기 (개발 확인용)
-const demo = new URLSearchParams(location.search).get('demo');
+const qs = new URLSearchParams(location.search), demo = qs.get('demo');
+// &photo=URL : 샘플 사진 넣기, &edit=N : N번째 장 편집기 열기 (headless 확인용)
+if (qs.get('photo')) { photos.push(new File([await (await fetch(qs.get('photo'))).blob()], 'demo.jpg', { type: 'image/jpeg' })); drawThumbs(); }
 if (demo === 'result') {
   forms.result.elements.people.value = 14;
   const g = $('#games .row'); g.querySelector('[name=as]').value = 3; g.querySelector('[name=bs]').value = 2;
   addRow('games', { a: '검정', as: 1, b: '흰색', bs: 1 });
   addRow('scorers', { name: '선수A', goals: 2, assists: 0 });
   addRow('scorers', { name: '선수B', goals: 1, assists: 1 });
-  check(); $('#go').click();
+  check(); await $('#go').onclick();
+  if (qs.get('edit')) { await openEditor(Number(qs.get('edit'))); if (qs.get('zoom')) { $('#zoom').value = qs.get('zoom'); $('#zoom').dispatchEvent(new Event('input')); } }
 } else if (demo === 'schedule') {
   document.querySelector('.seg button[data-tab=schedule]').click();
   $('#matches .row [name=date]').value = `${forms.schedule.elements.month.value}-07`;

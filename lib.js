@@ -96,3 +96,31 @@ export function scheduleCaption(s) {
   const en = s.matches.map(x => `${md(x.date)} ${x.start}${opp(x)}`).join(' · ');
   return [...lines, '', `${MONTHS_EN[m - 1]} fixtures ⚽ ${en}`, '', HASHTAGS].join('\n');
 }
+
+// ── 사진 배치 (v2.1) ──
+// view = { zoom, cx, cy }: zoom은 "폭 맞춤" 대비 배율, cx/cy는 사진 중심의 캔버스 좌표
+export const CW = 1080, CH = 1350;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+export function photoRect(sw, sh, { zoom, cx, cy }) {
+  const w = Math.round(CW * zoom), h = Math.round(sh * (CW / sw) * zoom);
+  return { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h };
+}
+
+// 자동 배치. kind: 'cover'(표지) | 'player'(선수 카드) | 'photo'(추가 사진)
+// 가로 사진: 폭 맞춤에서 1.25배 (좌우 한쪽 최대 12%만 잘림) / 세로 사진·선수: 꽉 채우고 위 30% 초점
+export function defaultView(sw, sh, kind) {
+  const h0 = sh * (CW / sw);
+  if (kind === 'player' || h0 >= CH) {
+    const zoom = Math.max(1, CH / h0), h = Math.round(h0 * zoom);
+    const focus = kind === 'photo' ? 0.5 : 0.3;
+    return { zoom, cx: CW / 2, cy: h / 2 - (h - CH) * focus };
+  }
+  const zoom = 1 / Math.max(1 / 1.25, 1 - 2 * 0.12);
+  const h = photoRect(sw, sh, { zoom, cx: 0, cy: 0 }).h;
+  return { zoom, cx: CW / 2, cy: kind === 'cover' ? 110 + h / 2 : CH / 2 };
+}
+
+export function clampView({ zoom, cx, cy }) {
+  return { zoom: clamp(zoom, 0.4, 4), cx: clamp(cx, 0, CW), cy: clamp(cy, 0, CH) };
+}

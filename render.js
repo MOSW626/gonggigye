@@ -1,4 +1,4 @@
-import { COLORS, coverCrop, containRect, formatDate, sortedScorers, MONTHS_EN } from './lib.js';
+import { COLORS, coverCrop, formatDate, sortedScorers, MONTHS_EN, photoRect, defaultView } from './lib.js';
 
 export const W = 1080, H = 1350;
 const TITLE = '"Black Han Sans", "Pretendard", "Apple SD Gothic Neo", sans-serif';
@@ -6,10 +6,12 @@ const BODY = '"Pretendard", "Apple SD Gothic Neo", sans-serif';
 const SUB = '#9FB0E8';
 const M = 64; // 좌우 여백
 
-function canvas() {
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  return [c, c.getContext('2d')];
+// target을 주면 그 캔버스에 다시 그림 (편집기에서 매 프레임 재사용)
+function canvas(target) {
+  const c = target || Object.assign(document.createElement('canvas'), { width: W, height: H });
+  const ctx = c.getContext('2d');
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
+  return [c, ctx];
 }
 function stripes(ctx, x, y, w, h, n) {
   for (let i = 0; i < n; i++) {
@@ -41,23 +43,41 @@ function bottomShade(ctx, from) {
   g.addColorStop(0, 'rgba(14,26,60,0)'); g.addColorStop(0.55, 'rgba(14,26,60,0.85)'); g.addColorStop(1, 'rgba(14,26,60,0.98)');
   ctx.fillStyle = g; ctx.fillRect(0, from, W, H - from);
 }
-// 흐린 배경 + 원본 사진 통째로 (자르지 않음)
-function blurredContain(ctx, img, box) {
-  const c = coverCrop(img.width, img.height, W, H);
-  ctx.filter = 'blur(36px) brightness(0.5)';
-  ctx.drawImage(img, c.sx, c.sy, c.sw, c.sh, -80, -80, W + 160, H + 160);
+// 흐린 배경 (같은 사진을 꽉 채워 흐리게). 편집기에서는 한 번 만들어 재사용
+export function makeBg(img) {
+  const [c, ctx] = canvas();
+  const cr = coverCrop(img.width, img.height, W, H);
+  ctx.filter = 'blur(28px) brightness(0.7)';
+  ctx.drawImage(img, cr.sx, cr.sy, cr.sw, cr.sh, -60, -60, W + 120, H + 120);
   ctx.filter = 'none';
-  const { w, h } = containRect(img.width, img.height, box.w, box.h);
-  const x = box.x + (box.w - w) / 2, y = box.top ? box.y : box.y + (box.h - h) / 2;
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, 28); ctx.fillStyle = '#000'; ctx.fill();
-  ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h, 28); ctx.clip();
-  ctx.drawImage(img, x, y, w, h);
-  ctx.restore();
-  return y + h;
+  return c;
 }
+// 사진을 view대로 그리고, 캔버스 안에 들어온 가장자리는 흐린 배경에 녹인다 (페더)
+const FEATHER = 130;
+let fgCanvas;
+function photoLayer(ctx, img, view, bg) {
+  ctx.drawImage(bg || makeBg(img), 0, 0);
+  const r = photoRect(img.width, img.height, view);
+  fgCanvas ||= Object.assign(document.createElement('canvas'), { width: W, height: H });
+  const f = fgCanvas.getContext('2d');
+  f.globalCompositeOperation = 'source-over';
+  f.clearRect(0, 0, W, H);
+  f.drawImage(img, r.x, r.y, r.w, r.h);
+  f.globalCompositeOperation = 'destination-in';
+  const fade = (x0, y0, x1, y1) => {
+    const g = f.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+    f.fillStyle = g; f.fillRect(0, 0, W, H);
+  };
+  const fw = Math.min(FEATHER, r.w / 3), fh = Math.min(FEATHER, r.h / 3);
+  if (r.y > 0) fade(0, r.y, 0, r.y + fh);
+  if (r.y + r.h < H) fade(0, r.y + r.h, 0, r.y + r.h - fh);
+  if (r.x > 0) fade(r.x, 0, r.x + fw, 0);
+  if (r.x + r.w < W) fade(r.x + r.w, 0, r.x + r.w - fw, 0);
+  ctx.drawImage(fgCanvas, 0, 0);
+  return r;
+}
+
 // "파랑  2 : 6  검정" — 이긴 팀은 흰색, 진 팀은 흐리게
 function scoreRow(ctx, g, cx, y, size) {
   const sc = `${g.as} : ${g.bs}`;
@@ -70,18 +90,21 @@ function scoreRow(ctx, g, cx, y, size) {
 }
 const meta = r => [formatDate(r.date), r.place, r.people ? `${r.people}명` : ''].filter(Boolean).join(' · ');
 
-export function cover(r, img, logoImg) {
-  const [c, ctx] = canvas();
+// o = { view, bg, target } — 모두 선택. view가 없으면 자동 배치
+export function cover(r, img, logoImg, o = {}) {
+  const [c, ctx] = canvas(o.target);
   ctx.fillStyle = COLORS.navy; ctx.fillRect(0, 0, W, H);
   const games = r.games.slice(0, 3);
   const resH = games.length === 1 ? 300 : 110 + games.length * 96; // 결과 블록 높이
-  // 사진 + 결과를 한 덩어리로 세로 가운데 배치
-  const box = { x: 56, w: W - 112, h: H - 150 - resH - 90, top: true };
-  const ph = img ? containRect(img.width, img.height, box.w, box.h).h : 0;
-  box.y = img ? Math.max(150, (H - (ph + 70 + resH)) / 2) : 0;
-  let y;
-  if (img) { y = blurredContain(ctx, img, box) + 90; bottomShade(ctx, y - 120); }
-  else { stripes(ctx, 0, 0, W, H - resH - 160, 12); bottomShade(ctx, H - resH - 360); y = H - resH - 60; }
+  let y = H - resH - 60;
+  if (img) {
+    const auto = defaultView(img.width, img.height, 'cover');
+    photoLayer(ctx, img, o.view || auto, o.bg);
+    // 글자 위치는 자동 배치 기준으로 고정 (편집 중에 글자가 따라 움직이지 않게)
+    const pr = photoRect(img.width, img.height, auto);
+    y = Math.min(y, Math.max(760, pr.y + pr.h - 80));
+  } else stripes(ctx, 0, 0, W, y - 100, 12);
+  bottomShade(ctx, y - 260);
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 14;
   logo(ctx, logoImg, 56, 36, 110);
   text(ctx, formatDate(r.date), W - 56, 104, 40, { align: 'right', weight: '800' });
@@ -139,10 +162,9 @@ export function summary(r, logoImg) {
 }
 
 // 잘한 선수 카드: 선수 사진 꽉 채움 + 이름 + 기록
-export function playerCard(p, r, img, logoImg, badge) {
-  const [c, ctx] = canvas();
-  const cr = coverCrop(img.width, img.height, W, H, 0.3);
-  ctx.drawImage(img, cr.sx, cr.sy, cr.sw, cr.sh, 0, 0, W, H);
+export function playerCard(p, r, img, logoImg, badge, o = {}) {
+  const [c, ctx] = canvas(o.target);
+  photoLayer(ctx, img, o.view || defaultView(img.width, img.height, 'player'), o.bg);
   bottomShade(ctx, H * 0.45);
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 16;
   if (badge) pill(ctx, badge, 56, 56);
@@ -167,11 +189,10 @@ export function badgeFor(p, i, list) {
   return '';
 }
 
-// 추가 사진: 자르지 않고 흐린 배경 위에 통째로
-export function photoSlide(img) {
-  const [c, ctx] = canvas();
-  ctx.fillStyle = COLORS.navy; ctx.fillRect(0, 0, W, H);
-  blurredContain(ctx, img, { x: 40, y: 40, w: W - 80, h: H - 80 });
+// 추가 사진: 자동 배치(가로는 1.25배 확대 + 위아래 녹임) 또는 사용자가 맞춘 view
+export function photoSlide(img, o = {}) {
+  const [c, ctx] = canvas(o.target);
+  photoLayer(ctx, img, o.view || defaultView(img.width, img.height, 'photo'), o.bg);
   return c;
 }
 

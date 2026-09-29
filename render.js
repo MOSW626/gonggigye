@@ -44,12 +44,42 @@ function bottomShade(ctx, from) {
   ctx.fillStyle = g; ctx.fillRect(0, from, W, H - from);
 }
 // 흐린 배경 (같은 사진을 꽉 채워 흐리게). 편집기에서는 한 번 만들어 재사용
+// 작은 캔버스에 자기 자신을 조금씩 밀어 겹쳐 그리는 간이 박스 블러 (pass회 반복)
+function boxBlur(t, pass) {
+  const tc = t.getContext('2d'), copy = Object.assign(document.createElement('canvas'), { width: t.width, height: t.height });
+  const cc = copy.getContext('2d');
+  for (let p = 0; p < pass; p++) {
+    cc.clearRect(0, 0, t.width, t.height); cc.drawImage(t, 0, 0);
+    tc.globalAlpha = 1 / 5;
+    for (const [dx, dy] of [[0, 0], [-2, 0], [2, 0], [0, -2], [0, 2]]) tc.drawImage(copy, dx, dy);
+    tc.globalAlpha = 1;
+  }
+}
 export function makeBg(img) {
   const [c, ctx] = canvas();
   const cr = coverCrop(img.width, img.height, W, H);
-  ctx.filter = 'blur(28px) brightness(0.7)';
-  ctx.drawImage(img, cr.sx, cr.sy, cr.sw, cr.sh, -60, -60, W + 120, H + 120);
-  ctx.filter = 'none';
+  // 흐림: ctx.filter는 iOS Safari가 지원하지 않아 (선명한 사진이 겹쳐 보임) 쓰지 않는다.
+  // 대신 아주 작게 줄였다가(3단계) 다시 키워서 모든 브라우저에서 같은 흐림을 만든다.
+  let src = img, sx = cr.sx, sy = cr.sy, sw = cr.sw, sh = cr.sh;
+  for (const k of [8, 24, 48]) {
+    const t = Object.assign(document.createElement('canvas'), { width: Math.round(W / k), height: Math.round(H / k) });
+    const tc = t.getContext('2d');
+    tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
+    tc.drawImage(src, sx, sy, sw, sh, 0, 0, t.width, t.height);
+    src = t; sx = sy = 0; sw = t.width; sh = t.height;
+  }
+  // 한 번에 키우면 모자이크처럼 보여서, 키울 때도 단계적으로 (각 단계의 부드러운 보간이 쌓여 흐림이 매끈해짐)
+  for (const k of [12, 3]) {
+    const t = Object.assign(document.createElement('canvas'), { width: Math.round(W / k), height: Math.round(H / k) });
+    const tc = t.getContext('2d');
+    tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
+    tc.drawImage(src, 0, 0, sw, sh, 0, 0, t.width, t.height);
+    if (k === 12) boxBlur(t, 3);
+    src = t; sw = t.width; sh = t.height;
+  }
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, sw, sh, -60, -60, W + 120, H + 120);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0, 0, W, H); // 밝기 70%
   return c;
 }
 // 사진을 view대로 그리고, 캔버스 안에 들어온 가장자리는 흐린 배경에 녹인다 (페더)

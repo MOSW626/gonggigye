@@ -1,7 +1,7 @@
-import { COLORS, coverCrop, formatDate, sortedScorers, MONTHS_EN, photoRect, defaultView } from './lib.js?v=8';
+import { COLORS, coverCrop, formatDate, sortedScorers, MONTHS_EN, photoRect, defaultView } from './lib.js?v=9';
 
 export const W = 1080, H = 1350;
-const TITLE = '"Black Han Sans", "Pretendard", "Apple SD Gothic Neo", sans-serif';
+const TITLE = '"Black Han Sans", "Hangul Fill", "Pretendard", "Apple SD Gothic Neo", sans-serif';
 const BODY = '"Pretendard", "Apple SD Gothic Neo", sans-serif';
 const SUB = '#9FB0E8';
 const M = 64; // 좌우 여백
@@ -21,6 +21,7 @@ function stripes(ctx, x, y, w, h, n) {
 }
 function text(ctx, s, x, y, size, { font = BODY, color = COLORS.white, align = 'left', weight = '', max = W - 2 * M } = {}) {
   ctx.font = `${weight} ${size}px ${font}`.trim();
+  s = String(s).normalize('NFC'); // 맥에서 붙여넣은 이름은 자모가 풀려(NFD) 깨져 보인다
   ctx.fillStyle = color; ctx.textAlign = align;
   ctx.fillText(s, x, y, max); // max: 긴 이름은 가로로 압축
 }

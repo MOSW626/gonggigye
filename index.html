@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F2F4F6">
 <title>공기계 포스트</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
 <style>
+  /* 제목 폰트는 직접 넣는다: 구글 폰트는 한글을 조각으로 보내 이름 글자마다 늦게 와서 섞여 나왔다. Black Han Sans에 없는 한글 8591자는 Pretendard Black으로 채움 (둘 다 OFL) */
+  @font-face { font-family:"Black Han Sans"; src:url(assets/BlackHanSans.woff2) format("woff2"); }
+  @font-face { font-family:"Hangul Fill"; src:url(assets/HangulFill.woff2) format("woff2"); }
   :root { --bg:#F2F4F6; --card:#fff; --text:#191F28; --sub:#6B7684; --line:#E5E8EB; --field:#F2F4F6; --blue:#3182F6; --blue-press:#1B64DA; --red:#F04452; --navy:#0E1A3C; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html { -webkit-text-size-adjust:100%; touch-action:manipulation; } /* 더블탭 확대 끔 (스테퍼 연타 시 확대 방지) */
@@ -237,8 +239,8 @@
 
 <script type="module">
 // ?v= : 배포할 때마다 올림 (브라우저가 예전 JS를 10분간 재사용하는 캐시 우회)
-import * as L from './lib.js?v=8';
-import * as R from './render.js?v=8';
+import * as L from './lib.js?v=9';
+import * as R from './render.js?v=9';
 
 const $ = s => document.querySelector(s);
 const forms = { result: $('#result'), schedule: $('#schedule') };
@@ -321,8 +323,8 @@ document.addEventListener('input', check);
 const cssReady = Promise.all([...document.querySelectorAll('link[rel=stylesheet]')].map(l => l.sheet ? 1 : new Promise(r => { l.onload = l.onerror = r; })));
 const EXTRA = ' GONGGIGYEMATCHRESULTFULLTIMEFIXTURESTOPSCORERPLAYMAKERGOALSASSISTS0123456789★·:–●골도움경기월일화수목금토명득점참여는톡방투표로공기계일정외';
 const loadFonts = t => Promise.race([
-  cssReady.then(() => Promise.all(['72px "Black Han Sans"', '40px "Pretendard"', '700 40px "Pretendard"', '800 40px "Pretendard"'].map(f => document.fonts.load(f, t + EXTRA)))),
-  new Promise(r => setTimeout(r, 4000)), // 폰트가 안 와도 시스템 폰트로 계속
+  cssReady.then(() => Promise.all(['72px "Black Han Sans"', '72px "Hangul Fill"', '40px "Pretendard"', '700 40px "Pretendard"', '800 40px "Pretendard"'].map(f => document.fonts.load(f, t + EXTRA)))),
+  new Promise(r => setTimeout(r, 8000)), // 폰트가 안 와도 시스템 폰트로 계속
 ]).catch(() => {});
 const logoP = new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = 'assets/logo.png'; });
 
